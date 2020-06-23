@@ -1,0 +1,2312 @@
+Oracle 10g提供的系统包多达几百个，此处只介绍一些常用的系统包。
+
+一、DBMS_OUTPUT
+
+1、概述
+作用：用于输入和输出信息,使用过程PUT和PUT_LINES可以将信息发送到缓冲区,使用过程GET_LINE和GET_LINES可以显示缓冲区信息。
+该包用来输出plsql变量的值，属于系统用户sys。下面讲述包的组成：
+
+2、包的组成
+1）、ENABLE
+说明：该过程用于激活本包，如果没有被激活，将无法调用本包的其它其余过程和函数。当调用该过程，缓冲区最大尺寸为1000000字节，最小为2000字节，默认为20000字节。
+注意：如果在SQL*PLUS中使用SERVEROUTPUT选项，则没有必要使用该过程。
+语法：DBMS_OUTPUT.ENABLE（buffer_size in integer default 20000）;
+
+2）、DISABLE
+说明：该过程用于禁止本包，并清除缓冲区的内容。当本包被禁止，将无法调用本包的其它其余过程和函数。
+注意：如果在SQL*PLUS中使用SERVEROUTPUT选项，则没有必要使用该过程。
+语法：DBMS_OUTPUT.DISABLE;
+
+3）、put和put_line
+说明：过程put_line用于将一个完整行的信息写入到缓冲区中，会自动在行的尾部追加行结束符；
+过程put则用地分块建立行信息，需要换行需要使用过程new_line追加行结束符。
+语法：dbms_output.put(item in number\varchar2\date);dbms_output.put_line(item in number\varchar2\date);
+
+当在sql*plus中使用包过程put、put_line时，需要设置serveroutput选项。
+例子：
+set serveroutput on
+begin
+dbms_output.put_line('伟大的中华民族');
+dbms_output.put('中国');
+dbms_output.put(',伟大的祖国');
+dbms_output.new_line;
+end;
+
+4）、new_line
+说明：该过程用于在行的尾部追加行结束符。
+语法：dbms_output.new_line;
+
+5）、get_line和get_lines
+说明：过程get_lin用于取得缓冲区的单行信息，get_lins用于取得缓冲区的多行信息。
+语法：dbms_output.get_line(line out varchar2,status out integer);
+dbms_output.get_lines(lines out chararr,numlines in out integer);
+其中line用于取得缓冲区的单行信息(最大255字节)，status用于返回过程执行是否成功，0成功1表示没有行；
+lines用于取得缓冲区的多行信息，numlines指定要检索的行数，并返回实际检索的行数。
+
+3、包的应用实例
+1）、例子一
+var line varchar2(100);
+var status number
+begin
+dbms_output.enable;
+dbms_output.put_line('伟大的中华民族');
+dbms_output.put('中国');
+dbms_output.put(',伟大的祖国');
+dbms_output.put.new_line;
+dbms_output.get_line(:line,:status);
+end;
+
+2）、例子二
+declare
+type line_table_type is table of varchar2(255) index by binary integer;
+line_table line_table_type;
+lines number(38):=3;
+begin
+dbms_output.enable;
+dbms_output.put_line('伟大的中华民族');
+dbms_output.put('中国');
+dbms_output.put(',伟大的祖国');
+dbms_output.put.new_lines;
+dbms_output.get_line(line_table,lines);
+end;
+
+
+二、DBMS_JOB
+
+1、概述
+作用：用于安排和管理作业队列,通过使用作业,可以使ORACLE数据库定期执行特定的任务
+注意：当使用DBMS_LOB管理作业时，必须确保设置了初始化参数job_queue_processes（不能为0）
+
+2、包的组成
+1）、submit
+说明：用于建立一个新作业.当建立作业时,需要给作业要执行的操作,作业的下次运行日期及运行时间间隔.
+语法：
+dbms_out.submit (
+job out binary_integer,what in varchar2,
+next_date in date default sysdate,
+interval in varchar2 default 'null',
+no_parse in boolean default false,
+instance in binary_integer default any_instance,
+force in boolean default false);
+其中，job用于指定作业编号;what用于指定作业要执行的操作;next_date用于指定作业的下次运行日期;interval用于指定运行作业的时间间隔;
+no_parse用于指定是否解析与作业相关的过程;instance用于指定哪个例程可以运行作业;force用于指定是否强制运行与作业相关的例程.
+例子1：
+exec dbms_job.submit(:jobno,'dbms_ddl.analyze_object(''table'',''scott'',''emp'',''compute'');',sysdate,'sysdate+1');
+exec dbms_job.submit(:v_num,'a;',sysdate,'sysdate + (10/(24*60*60))')加入作业。间隔10秒钟
+exec dbms_job.submit(:v_num,'a;',sysdate,'sysdate + (11/(24*60))')加入作业。间隔11分钟
+
+2）、remove
+说明：删除作业队列中的特定作业
+语法：dbms_job.remove(job in binary_integer);
+例子：exec dbms_job.remove(21)--删除21号作业
+
+3）、change
+说明：用于改变与作业相关的所有信息,包括作业操作,作业运行日期以及运行时间间隔等.
+语法：
+dbms_job.change(
+job in binary_integer,what in varchar2,
+next_date in date,interval in varchar2,
+instance in binary_integer default null,
+force in boolean default false);
+例子：exec dbms_job.change(2,null,null,'sysdate+2');
+
+4）、what
+说明：用于改变作业要执行的操作
+语法：dbms_job.what(job in binary_integer,what in varchar2);
+例子：exec dbms_job.what(2,'dbms_stats.gather_table_stats->(''scott'',''emp'');');
+
+5）、next_date
+说明：用于改变作业的下次运行日期
+语法：dbms_job.next_date(job in binary_integer,next_date in date);
+例子：exec dbms_job.next_date('2','sysdate+1');
+
+6）、instance
+说明：用于改变作业的例程
+语法：dbms_job.instance(job in binary_integer,instance in binary_integer,force in boolean default false);
+例子：exec dbms_job.instance(2,1);
+
+7）、interval
+说明：用于改变作业的运行时间间隔
+语法：dbms_job.interval(job in binary_integer,interval in varchar2);
+例子：exec dbms_job.interval(2,'sysdate+1/24/60');
+
+8）、broken
+说明：用于设置作业的中断标识。当中断了作业之后，作业将不会被运行。
+语法：dbms_job.broken(job in binary_integer,broken in boolean,next_date in date default sysdate);
+其中broken指定中断标记(true表示中断)
+例子：dbms_job.broken(2,true,'sysdate+1');
+
+9）、run
+说明：用于运行已存在的作业
+语法：dbms_job.run(job in binary_integer,force in boolean default false);
+例子：exec dbms_job.run(1);
+
+
+三、dbms_pipe
+
+1、概述
+说明：Oracle管道类似UNIX系统的管道，但不采用OS机制实现，管道信息被缓存到SGA中，当关闭例程时会丢失管道信息，建立公用管道所有数据库用户都可访问，私有管道只能由建立这访问。
+作用：用于在同一例程程的不同会话之间进行管道通信.注意,如果用户要执行包dbms_pipe中的过程和函数,则必须要为用户授权.
+sql>conn sys/oracle as sysdba;
+sql>grant execute on dbms_pipe to scott;
+
+2、包的组成
+1）、create_pipe
+作用：该函数用于建立公用管道或私有管道.如果将参数private设置为TRUE,则建立私有管道;如果设置为FALSE,则建立公用管道.
+语法：dbms_pipe.create_pipe(pipename in varchar2,maxpipesize in integer default 8192,private in boolean default true) return integer;
+其中，pepename指定管道名称，maxpipesize指定管道消息的最大尺寸，private指定管道类型，函数返回0则成功，反之失败。
+
+2）、pack_message
+作用：该过程用于将变量写入到本地消息缓冲区。
+说明：为了个管道发消息，首先使用过程pack_message将消息写入本地消息缓冲区，然后使用send_message将消息发送到管道。
+语法：dbns_pipe.pack_message(item in varchar2/nchar2/number/date);
+dbns_pipe.pack_message_raw(item in raw);
+dbns_pipe.pack_message_rowid(item in rowid);
+
+3）、send_message
+作用：该函数用于将本地消息缓冲区中的内容发送到管道。
+语法：dbms_pipe.send_message(pipename in varchar2,timeout in integer defalut maxwait,maxpipesize in integer default 8192) return integer;
+其中，timeout指定发送消息的超时时间，0成功1超时3中断。
+
+4）、receive_message
+说明：该函数用于接收管道消息，并将接收到的消息写入到本地消息缓冲区。当接收完管道信息之后，会删除管道消息，管道消息只能被接收一次。
+语法：
+dbms_pipe.receive_message(pepename in varchar2,timeout in integer default maxwait) return integer;
+其中，返回0接受成功，返回1超时，返回2本地缓冲区不能容纳管道消息，返回3发生中断。
+
+5）、next_item_type
+说明：该函数用于确定本地消息缓冲区下一项的数据类型。在调用receive_message之后调用。
+语法：dbms_pipe.next_item_type return integer;
+其中，如果该函数返回0,则表示管道没有任何消息;如果返回6,则表示下一项的数据类型为number;如果返回9,则表示下一项的数据类型为varchar2;
+如果返回11,则表示下一项的数据类型为rowid;如果返回12,则表示下一项的数据类型为date;如果返回23,则表示下一项的数据类型为raw.
+
+6）、unpack_message
+作用：该过程用于将消息缓冲区的内容取出来写入到变量中，每次只能取一条，需要取出多条需要多次调用。
+说明：在使用函数receive_message接收到管道消息之后，应该使用过程unpack_message取得消息缓冲区的消息。
+语法：dbms_pipe.unpack_message(item out varchar2\nchar\number\date);
+dbms_pipe.unpack_message_raw(item out raw);
+dbms_pipe.unpack_message_rowid(item out rowid);、
+
+7）、remove_pipe
+作用：该函数用于删除已经建立的管道
+语法：dbms_pipe.remove_pipe(pepename in varchar2) return integer;
+其中，函数返回0表示成功，否则会显示错误信息。
+
+8）、purge
+说明：该过程用于清除管道中的内容。
+语法：dbms_pipe.purge(pipename in varchar2);
+
+9）、reset_buffer
+说明：该过程用于复位管道缓冲区，因为所有管道都共享单个管道缓冲区，所以在使用新管道之前应该复位管道缓冲区。
+语法：dbms_pipe.reset_buffer;
+
+10）、unique_session_name
+说明：该函数用于为特定会话返回惟一的名称,并且名称的最长度为30字节，对同一会话其值不变。
+语法：dbms_pipe.unique_session_name
+
+3、包的应用
+1）、综合例子1
+declare
+falg int;
+v_ename emp.ename%type;
+v_sal emp.sal%type;
+v_rowid rowid;
+item_no int;
+message varchar2(100);
+v_session varchar2(200);
+begin
+flag := dbms_pipe.create_pipe('public_pipe', 8192, false);
+if flag = 0 then
+dbms_output.put_line('建立公用管道成功');
+end if;
+select ename,sal,rowid into v_ename,v_sal,v_rowid from emp where empno=7788;
+dbns_pipe.pack_message(v_ename||','||v_sal||','||v_rowid);
+flag :dbms_pipe.send_message('PUBLIC_PIPE');
+if flag = 0 then
+dbms_output.put_line('发送成功');
+end if;
+flag := dbms_pipe.receive_message('PUBLIC_PIPE');
+if flag = 0 then
+dbms_output.put_line('成功');
+end if;
+item_no := dbms_pipe.next_item_type;
+dbms_output.put_line(item_no);
+dbms_pipe.unpack_message(message);
+dbms_output.put_line(message);
+--remove_pipe
+flag:=dbms_pipe.remove_pipe('PUBLIC_PIPE');
+if flag = 0 then
+dbms_output.put_line('删除成功');
+end if;
+--unique_session_name
+v_session:=dbms_pipe.unique_session_name;
+dbms_output.put_line(v_session);
+end;
+
+2）、综合例子2
+使用管道是，一个会话需要将消息发送到管道中，另一个会话则需要接收管道消息。
+发送消息到管道需要先将消息写入本地消息缓冲区，然后再发送到管道；
+接收消息需要先使用本地消息缓冲区接收管道消息，然后从消息缓冲区取得具体消息。
+create or replace procedure send_message(pepename varchar2,message varchar2) is
+flag int;
+begin
+flag:=dbms_pipe.create_pipe(pipename);
+if flag=0 then
+dbms_pipe.pack_message(message);
+flag:=dbms_pipe.send_message(pipename);
+end if;
+end send_message;
+
+create or replace procedure receive_message(pipename varchar2,message out varchar2) is
+flag int;
+begin
+flag:=dbms_pipe.receive_message(pipename);
+if flag=0 then
+dbms_pipe.unpack_message(message);
+flag:=dbms_pipe.remove_pipe(pipename);
+end if;
+end receive_message;
+
+会话一:exec send_message('pipe1','你好');
+会话二：
+var message varchar2(100)
+exec scorr.receive_message('pipe1',:message)
+print message
+
+
+四、dbms_alert
+
+1、概述
+作用:用于生成并传递数据库预警信息.使用包DBMS_ALERT,则必须以SYS登陆,为该用户授予执行权限.
+sql>conn sys/oracle as sysdba
+sql>grant execute on dbms_alert to scott;
+
+2、包的组成
+
+1）、register
+说明：用于注册预警事件
+语法：dbms_alter.register(name in varchar2);
+其中name指定预警事件名称，其值不能超过30字节。
+例子：exec dbms_alter.register('alter1');
+
+2）、remove
+说明：用于删除会话不需要的预警事件.
+语法：dbms_alert.remove(name in varchar2);
+例子：exec dbms_alert.remove('alert1');
+
+3）、removeall
+说明：用于删除当前会话所有已注册的预警事件
+语法：dbms_alter.removeall
+
+4）、set_defaults
+说明：用于设置检测预警事件的时间间隔,默认时间间隔为5秒
+语法：dbms_alert.set_defaults(sensitivity in number);
+例子：dbms_alert.set_defaults(20)
+
+5）、signal
+说明：用于指定预警事件所对应的预警消息。只有在提交事务时才会发出预警信号，而当回退事务时不会发出预警信号。
+语法：dbms_alert.signal(name in varchar2,message in varchar2);
+其中message指定预警事件的消息，长度不超过1800字节。
+例子：exec dbms_alert.signal('alert1','hello');
+
+6）、waitany
+说明：用于等待当前会话的任何预警事件,并且在预警事件发生时输出相应信息.在执行该过程之前,会隐含地发出COMMIT.
+语法：
+dbms_alter.waitany(name out varchar2,message out varchar2,status out integer,timeout in number default maxwait);
+其中status用于返回状态值,返回0表示发生了预警事件,返回1表示超时;timeout用于设置预警事件的超时时间.
+
+7）、waitone
+说明：用于等待当前会话的特定预警事件,并且在发生预警事件时输出预警消息.在执行该过程之前,会隐含地发出COMMIT.
+dbms_alter.waitone(name out varchar2,message out varchar2,status out integer,timeout in number default maxwait);
+
+3、应用实例
+修改员工工资时发出预警
+create or replace trigger tr_upd_sal
+after update of sal on emp
+begin
+dbms_alert.signal('sal_upd_alert','修改了雇员工资');
+end;
+
+create or replace procedure wait_event(name varchar2) is
+message varchar2(200);
+status int;
+begin
+dbms_alert.register(name);
+dbms_alert.waitone(name,message,status);
+if status=0 then
+dbms_output.put_line(message);
+end if;
+dbms_alert.remove(name);
+end wait_event;
+
+set serveroutput on 
+begin
+for i in 1..5 loop
+wait_event('sal_upd_alert');
+end loop;
+end;
+
+
+五.dbms_transaction
+
+1、概述
+作用:用于在过程,函数,和包中执行SQL事务处理语句.
+
+2、包的组成
+1）、read_only
+说明：用于开始只读事务,其作用与SQL语句SET TRANSACTION READ ONLY完全相同，该过程必须是事务开始的第一条语句。
+语法：dbms_transactino.read_only
+
+2）、read_write
+说明：用于开始读写事务,其作用与SQL语句SET TRANSACTION READ WRITE完全相同，该过程必须是事务开始的第一条语句。
+语法：dbms_transactino.read_write
+
+3）、advise_rollback
+说明：用于建议回退远程数据库的分布式事务，其作用与SQL语句alter seesion advise rollback完全相同
+语法：dbms_transactino.advise_rollback
+
+4）、advise_nothing
+说明：用于建议远程数据库的分布式事务不进行任何处理，其作用与SQL语句alter seesion advise nothing完全相同
+语法：dbms_transactino.advise_nothing
+
+5）、advise_commit
+说明：用于建议提交远程数据库的分布式事务，其作用与SQL语句alter seesion advise commit完全相同
+语法：dbms_transactino.advise_commit;
+
+6）、use_rollback_segment
+说明：用于指定事务所要使用的回滚段，其作用与SQL语句set transaction use rollback segment完全相同
+语法：dbms_transactino.use_rollback_segment(rb_name varchar2);
+其中，rb_name指定事务所要使用的回滚段名称。
+
+7）、commit_comment
+说明：用于在提交事务时指定注释，其作用与SQL语句commit comment<text>完全相同
+语法：dbms_transactino.commit_comment(cmnt varchar2);
+其中cmnt用于指定与事务相关的注释信息。
+
+8）、commit_force
+说明：用于强制提交分布式事务，其作用与SQL语句commit force text,number完全相同
+语法：dbms_transaction.commit_force(xid varchar2,scn carchar2 default null);
+
+9）、commit
+说明：用于提交当前事务，其作用与sql语句commit完全相同。
+语法：dbms_transaction.commit;
+
+10）、savepoint
+说明：用于设置保存点，其作用与sql语句savepoint 完全相同。
+语法：dbms_transaction.sevepoint(savept varchar2);
+其中，savept指定保存点名称。
+
+11）、rollback
+说明：用于回退当前事务，其作用与sql语句rollback完全相同。
+语法：dbms_transaction.rollback;
+
+12）、rollback_savepoint
+说明：用于回退到保存点，并取消部分事务，其作用与sql语句rollback to savepoint<savepoint_name>完全相同。
+语法：dbms_transaction.rollback_savepoint(savept varchar2);
+
+13）、rollback_force
+说明：用于强制回退分布式事务，其作用与sql语句rollback force<text>完全相同。
+语法：dbms_transaction.rollback_force(xid varchar2);
+
+14）、begin_discrete_transaction
+说明：用于开始独立事务模式
+语法：dbms_transaction.begin_discreate_transaction;
+
+15）、purge_mixed
+说明：用于清除分布式事务的混合事务结果
+语法：dbms_transaction.purge_mixed(xid varchar2);
+其中xid指定事务ID号。
+
+16）、purge_lost_db_entry
+说明：用于清除本地数据库所记载的远程事务入口,该事务入口操作因为远程数据库问题未能在远程数据库完成.
+语法：dbms_transaction.purge_lost_db_entry(xid varchar2);
+其中xid指定事务ID号。
+
+17）、local_transaction_id
+说明：用于返回当前事务的事务标识号
+语法：dbms_transaction.local_transaction_id(create_transaction boolean:=false) return varchar2;
+其中create_transaction指定是否要启动新事务，true为启动。
+
+（18）、step_id
+说明：用于返回排序DML事务的惟一正整数
+语法：dbms_transaction.step_id return number;
+
+
+六.dbms_session
+
+1、概述
+作用:提供了使用PL/SQL实现ALTER SESSION命令,SET ROLE命令和其他会话信息的方法.
+
+2、包的组成
+1）、set_identifier
+说明：用于设置会话的客户ID号。
+语法：dbms_session.set_identifier(client_id varchar2);
+其中client_id指定当前会话的应用标识符。
+
+2）、set_context
+说明：用于设置应用上下文属性
+语法：
+dbms_session.set_context(namespace varchar2,attribute varchar2,value varchar2);
+dbms_session.set_context(namespace varchar2,attribute varchar2,value varchar2,username varchar2,client_id varchar2);
+其中namespace指定应用上下文的命名空间，attribute指定应用上下文的属性，value指定属性值，username指定应用上下文的用户名属性。
+
+3）、clear_context
+说明：用于清除应用上下文的属性设置
+语法：dbms_session.clear_context(namespace varchar2,client_identifier varchar2,attribute varchar2);
+其中client_identifier只适用于全局上下文。
+
+4）、clear_identifier
+说明：用于删除会话的set_client_id.
+语法：dbms_session.clear_identifier();
+
+5）、set_role
+说明：用于激活或禁止会话角色，与sql语句set role作用完全相同。
+语法：dbms_seesion.set_role(role_cmd varchar2);
+例子：在sql*plus使用该过程激活或禁止角色如下
+dbms_session.set_role('DBA')
+dbms_session.set_role('none')
+
+6）、set_sql_trace
+说明：用于激活或禁止当前会话的SQL跟踪，其作用与SQL语句alter session set sql_trace= 完全相同。
+语法如下:dbms_session.set_sql_trace(sql_strace boolean);
+其中sql_strace用于指定布尔值，true表示激活sql跟踪，false表示禁止。
+例子：在sql*plus使用该过程
+exec dbms_session.set_sql_trace(true);
+exec dbms_session.set_sql_trace(false);
+
+7）、set_nls
+说明：用于设置NLS特征，其作用与sql语句alter session set <nls_param>=<value>完全相同。
+语法：dbms_session.set_nls(param varchar2,value varchar2);
+其中param指定nls参数，value指定nls参数
+例子：在sql*plus使用该过程
+exec dbms_seesion.set_nls('nls_date_format','''YYYY-MM-DD''');
+select sysdate from dual;
+
+8）、close_database_link
+说明：用于关闭已经打开的数据库链，其作用与SQL语句alter session close datebase link<name>完全相同。
+语法：dbms_session.close_database_link(dbline varchar2);
+其中用于指定要关闭的数据库连接名。
+
+9）、reset_package
+说明：用于复位当前会话的所有包,并且会释放包状态。
+语法：dbms_session.reset_package;
+
+10）、modify_package_state
+说明：用于修改当前会话的PL/SQL程序单元的状态
+语法:dbms_session.modify_package_state(action_flags in pls_integer);
+其中，action_flags指定pl/sql程序单元标记，当设置为1是，会释放plsql程序单元所占用的内存；2则会重新初始化pl/sql包。
+
+11）、unique_session_id
+说明：用于返回当前会话的惟一ID标识符
+例子：select dbms_session.unique_session_id from dual;
+
+12）、is_role_enabled
+说明：用于确定当前会话是否激活了特定角色.
+语法:dbms_session.is_role_enabled(rolename varchar2) return boolean;
+其中rolename指定角色名。返回true表示已激活，false表示未激活。
+例子：set serveroutput on
+begin
+if dbms_session.is_role_enabled('DBA') then
+dbms_output.put_line('激活了');
+else dbms_output.put_line('没激活');
+end if;
+end;
+
+13）、is_session_alive
+说明：用于确定特定会话是否处于活动状态.
+语法：dbms_session.is_session_alive(uniqueid varchar2) return boolean;
+其中uniqueid指定会话ID号，处于活动返回true，否则false。
+
+14）、set_close_cached_open_cursors
+说明：用于打开或关闭close_cached_open_cursors，其作用与alter session set close_cached_open_cursors完全相同。
+语法：dbms_session.set_close_cached_open_cursors(close_cursors boolean);
+其中close_cursors指定布尔值，设置为true打开，false关闭。
+
+15）、free_unused_user_meory
+说明：用于在执行了大内存操作(超过100K)之后回收未用内存
+语法：dbms_session.pree_unused_user_memory;
+
+16）、set_context
+说明：设置应用上下文属性的值.
+语法：dbms_session.set_context(namespare varchar2,attribute varchar2,value varchar2,username varchar2,client_id varchar2);
+
+17）、list_context
+说明：用于返回当前会话原命名空间和上下文列表
+语法：
+type appctxrectyp is record(namespace varchar2(30),attribute varchar2(30),value varchar2(256));
+type appctxtabtyp is table of appctxrectyp index by binary_integer;
+dbms_session.list_context(list out appctxtabtyp,size out number);
+其中list用于取得当前会话的列表集，size用于返回列表个数。
+
+18）、swith_current_consumer_group
+说明：用于改变当前会话的资源使用组
+语法：dbms_session.switch_current_consumer_group(
+new_group in varchar2,old_group out varchar2,initial_group in boolean);
+其中new_group指定新资源使用组；old_group指定原有资源实用组；initial_group指定布尔值，true表示出错后使用原有资源使用组。
+
+
+七、dbms_rowid
+
+1、概述
+作用:用于在PL/SQL程序和SQL语句中取得行标识符(rowid)的信息并建立ROWID,通过该包可以取得行所在的文件号,行所在文件的数据块号,行所在数据块的行号,以及数据库对象号等消息.
+
+2、包的组成
+1）、rowid_create
+说明：建立ROWID
+语法:dbms_rowid.rowid_create (
+rowid_type in number,object_number in number,
+relative_fno in n umber,block_number in number,
+row_number in number) return rowid;
+其中，rowid_type用于指定ROWID类型(0:受限ROWID,1:扩展ROWID);object_number用于指定数据对象号;relative_fno用于指定相对文件号;block_number用于指定在文件中的数据块号;row_number用于指定在数据块中的行号.
+
+2）、rowid_info
+说明：用于取得特定ROWID的详细信息.
+语法：dbms_rowid_info(
+rowid_in in rowid,rowid_type out number,
+object_number out number,relative_fno out number,
+block_number out number,row_number out number);
+其中rowid_in指定rowid。
+
+3）、rowid_type
+说明：用于返回特定ROWID的类型
+语法：dbms_rowid.rowid_type(row_id in rowid) return number;
+其中返回0表示受限rowid，返回1表示扩展rowid。
+例子：select dbms_rowid.rowid_type(AAAC90AAFAAAAACAAK) from dual;
+
+4）、rowid_object
+说明：用于取得特定ROWID所对应的数据对象号
+语法：dbms_rowid.rowid_object(row_id in rowid) return number;
+例子：select dbms_rowid.rowid_object(row_id) from dept;
+
+5）、rowid_relative_fno
+说明：用于取得特定ROWID所对应的相对文件号
+语法：dbms_rowid.rowid_relative_fno(row_id in rowid) return numer;
+例子：select dbms_rowid.rowid_relative_fno(rowid) from dept;
+
+6）、rowid_block_number
+说明：用于返回特定ROWID在数据文件中所对应的数据块号.
+语法：dbms_rowid.rowid_block_number(row_id in rowid) return number;
+例子：select dbms_rowid.rowid_block_number(rowid) from dept;
+
+7）、rowid_row_number
+说明：用于返回特定ROWID在数据块中所对应的行号.
+语法：dbms_rowid.rowid_row_number(row_id in rowid) return number;
+例子：select dbms_rowid.rowid_row_number(rowid) from dept;
+
+8）、rowid_to_obsolute_fno
+说明：用于返回特定ROWID所对应的绝对文件号
+语法：dbms_rowid.rowid_to_obsolute_fno(row_id in rowid,schema_name in varchar2,object_name in varchar2) return number;
+declare
+my_rowid rowid;
+rowid_type number;
+object_number number;
+relative_fno number;
+block_number number;
+row_number number;
+abs_fno int;
+rowid_val char(18);
+begin
+--rowid_create
+my_rowid:=dbms_rowid.rowid_create(1,12197,3,100,1);
+dbms_output.put_line(my_rowid);
+--rowid_info
+dbms_rowid.rowid_info('AAAC90AAFAAAAACAAK',rowid_type,object_number,relative_fno,block_number,row_number);
+dbms_output.put_line('数据对象号'||object_number);
+--rowid_to_obsolute_fno
+select rowid into rowid_val from emp where empno=7788;
+abs_fno:=dbms_rowid.rowid_to_obsolute_fno(rowid_val,'scott','emp');
+dbms_output.put_line('7788对应的绝对文件号'||abs_fno);
+end;
+
+9）、rowid_to_extended
+说明：用于将受限rowid转变为扩展rowid
+语法：dbms_rowid.rowid_to_extended(old_rowid in rowid,schema_name in varchar2,object_name in varchar2,conversion_type in integer) return rowid;
+其中，conversion_type指定转换类型(rowid_convert_internal/external_convert_external)
+例子；select empno,ename from emp where rowid=dbms_rowid.rowid_to_extended('0000001C.0007.0005','SCOTT','EMP',0);
+
+10）、rowid_to_restricted
+说明：用于将扩展rowid转换为受限rowid
+语法：dbms_rowid.rowid_to_restricted(old_rowid in rowid,conversion_type in integer) return rowid;
+例子：select dbms_rowid.rowid_to_restricted(rowid,0) from emp;
+
+11）、rowid_verify
+说明：检查是否可以将受限rowid转变为扩展rowid
+语法：dbms_rowid.rowid_verify(rowid_in in rowid,schema_name in varchar2,object_name in varchar2,vonversion_type in integer) return number;
+其中返回0表示可以，1表示不能。
+例子：select dbms_rowid.rowid_verify('0000001C.0007.0005','SCOTT','EMP',0) from dual;
+
+
+八、dbms_rls
+1、概述
+本报只适用于Oracle Enterprise Edition,它用于实现精细访问控制,并且精细访问控制是通过在SQL语句中动态增加谓词(WHERE子句)来实现的.
+通过使用ORACLE的精细访问控制特征,可以使不同数据库用户在执行相同SQL语句时操作同一张表上的不同数据.
+例如多个用户执行select * from emp时，各自看到的行数不同。A只能看到财务部的记录，B只能看到市场部的数据。
+
+2、包的组成
+1）、add_policy
+作用：用于为表、视图或同义词增加一个安全策略，当执行该操作结束是会自动提交事务。
+语法dbms_rls.add_policy(
+object_aschema in varchar2 null,
+object_name in varchar2,
+policy_name in varchr2,
+function_schema in varchar2 null,
+policy_function in varchar2,
+statement_type in varchar2 null,
+update_check in boolean false,
+enable in boolean true,
+static_policy in boolean false);
+其中object_aschema指定包含表、视图或同义词的方案(默认null表示当前方案)，
+object_name指定要增加安全策略的表、视图或同义词，
+policy_name指定要增加的安全策略名称，
+function_schema指定策略函数的所在方案(默认null表示当前方案)，
+policy_function指定生成安全策略谓词的函数名，
+statement_type指定使用安全策略的sql语句(默认null表示适用于select、insert、update、delete)，
+update_check指定执行insert、update时是否检查安全策略，
+enable指定是否要激活安全策略，
+static_policy指定是否要生成静态的安全策略。
+
+2）、drop_policy
+作用：用于删除定义在特定表、视图或同义词的安全策略，当试行该操作结束时会自动提交事务。
+语法：dbms_rls.drop_policy(
+object_achema in varchr2 null,
+object_name in varchar2,
+policy_name in varchar2);
+
+3）、refresh_policy
+作用：用于刷新与安全策略修改相关的所有sql语句，并使得Oracle重新解析相关sql语句，自动提交。
+语法：dbms_rls.refresh_policy(
+object_achema in varchr2 null,
+object_name in varchar2 null,
+policy_name in varchar2 null);
+
+4）、enable_policy
+说明：用于激活或禁止特定的安全策略，默认情况下当增加安全策略时会自动激活，自动提交。
+语法：dbms_rls.enable_policy(
+object_achema in varchr2 null,
+object_name in varchar2,
+policy_name in varchar2,
+enable in boolean);
+
+5）、create_policy_group
+作用：用于建立安全策略组
+语法：dbms_rls.create_policy_group(object_schema varchar2, object_name varchar2,policy_group varchar2);
+其中policy_group指定策略组的名称。
+
+6）、add_grouped_policy
+作用：用于增加与特定策略组相关的安全策略。
+语法：dbms_rls.add_grouped_policy(object_schema varchar2, object_name varchar2,policy_group varchar2,policy_name varchar2,
+function_schema varchar2,policy_function varchar2,statement_types varchar2,update_check boolean,enabled boolean,static_policy boolean false);
+
+7）、add_policy_context
+作用：用于为应用增加上下文
+语法：dbms_rls.add_policy_context(object_schema varchar2,object_name varchar2,namespace varchar2,attribute varchar2);
+其中namespace指定命名空间，attribute指定上下文属性。
+
+8）、delete_policy_group
+作用：用于删除安全策略组
+语法：dbms_rls.delete_policy_group(object_schema varchar2,object_name varchar2,policy_group varchar2);
+
+9）、drop_grouped_policy
+作用：用于删除特定策略组的安全策略。
+语法：dbms_rls.drop_grouped_policy(object_schema varchar2,object_name varchar2,policy_group varchar2,policy_name varchar2);
+
+10）、drop_policy_context
+作用：用于删除对象的上下文。
+语法：dbms_rls.drop_policy_context(object_schema varchar2,object_name varchar2,namespace varchar2,attribute varchar2);
+
+11）、enable_grouped_policy
+作用：用于激活或禁止特定策略组的安全策略
+语法：dbms_rls.enable_grouped_policy(object_schema varchar2,object_name varchar2,group_name varchar2,policy_name varchar2,enable boolean);
+
+12）、refresh_grouped_policy
+作用：用于刷新与特定安全策略组的安全策略相关的sql语句(重新解析sql语句)
+语法：dbms_rls.refresh_grouped_policy(object_schema varchar2,object_name varchar2,group_name varchar2,policy_name varchar2);
+
+3、使用dbms_rls实现精细访问控制
+假设希望sys、system、scott用户可以访问emp表的所有员工，blake用于智能访问部门30的员工，jones用户只能访问部门20的员工，其他用户只能访问部门10的员工。
+
+步骤如下
+1）、建立应用上下文
+说明：要求用户必须具有create any context系统权限。
+create or replace context empenv using scott.ctx;--建立名称为empenv的应用上下文，其属性有scott方案的包ctx包设置。
+
+2）、建立包过程设置应用上下文属性
+create or replace package scott.ctx as
+procedure set_deptno;
+end;
+create or replace package body scott.ctx as 
+procedure set_deptno is 
+id number;
+begin
+if sys_context('userenv','session_user')='JONES' then
+dbms_session.set_context('empenv','deptno',20);
+elsif sys_context('userenv','session_user')='BLAKE' then
+dbms_session.set_context('empenv','deptno',30);
+else
+dbms_session.set_context('empenv','deptno',10);
+end if;
+end;
+end;
+
+3）、建立登录触发器
+说明：用户登录数据库之后会自动触发登陆触发器，建立登录触发器的目的是要隐含调用过程ctx.set_deptno，从而设置上下文属性。必须要以sys用户身份建立登陆触发器。
+conn sys/oracle as sysdba
+create or replace trigger login_trig
+after logon on database call scott.ctx.set_deptno
+
+4）、建立策略函数
+策略函数必须带有2个参数，第一个参数对应于方案名，第二个参数对应于表名、视图名、同义词名。
+create or replace package scott.emp_security as
+function emp_sec(p1 varchar2,p2 varchar2) return varchar2;
+end;
+create or replace package body scott.emp_security ad
+function emp_sec(p1 varchar2,p2 varchar2) return varchar2
+is
+d_predicate varchar2(2000);
+begin
+if user not in ('SYS','SYSTEM','SCOTT') then
+d_predicate:='deptno=SYS_CONTEXT(''empenv'',''deptno'')'
+return d_predicate;
+end if;
+return '1=1';
+end;
+end;
+
+5）、增加策略
+说明：增加策略，并定义对象、策略、策略函数以及SQL语句之间的对应关系。
+execute dbms_rls.add_policy('scott','emp','emp_policy','scott','emp_security.emp_sec','select');
+执行add_policy后会在系统默认策略组sys_default中增加策略emp_policy，并在scott.emp上的select语句使用该策略。
+其中第一个参数是对象所在方案名，第二个参数是对象名，第三个参数是策略名，第四个参数策略函数所在的方案名，
+第五个参数时策略函数，第六个参数是使用该策略的sql语句(如果不指定则select,insert,ypdate,delete都会使用该策略)
+
+当SYS,SYSTEM,SCOTT登录查询，谓词为1=1，当JONES登陆谓词为deptno=20，当blake登陆谓词为deptno=30。
+
+
+九、dbms_ddl
+1、概述
+作用：提供了在PL/SQL块中执行DDL语句的方法,并且也提供了一些DDL的特殊管理方法.
+
+2、包的组成
+1）、alter_compile
+说明：用于重新编译过程、函数和包
+语法：dbms_ddl.alter_compile(type varchar2,schema varchar2,name varchar2);
+其中type指定对象类型(procedure,function,package,trigger)，schema指定对象所在方案，name指定对象名
+例子：dbms_ddl.alter_compile('PROCUDURE',NULL,'ADD_EMP');
+
+2）、analyze_object
+作用：用于分析表、索引、簇并生成统计数据
+语法：dbms_ddl.analyze_object(type varchar2,schema varchar2,name varchar2,method varchar2,
+estimate_rows number default null,estmate_percent number default null,
+method_opt varchar2 default null,partname varchar2 default null);
+其中type指定对象类型(table\index\delete)，method指定分析方法(compute,estimate,delete)，estimate_rows指定要顾忌的行数，estimate_percent指定要顾忌的百分比，
+method_opt指定分析选项(for table,for all columns等)，partname指定要分析的分区。
+例子：exec dbms_ddl.analyze_object('TABLE',null,'EMP','COMPUTE');
+
+3）、is_trigger_fire_once
+作用：用于检测特定的DML或DDL触发器是否只执行一次
+语法：dbms_ddl.is_trigger_fire_once(trig_owver in varchar2,trig_name in varchar2) return boolean;
+其中，trig_owver指定触发器所有者，trig_name指定触发器名，返回true表示只被触发一次。
+
+4）、set_trigger_firing_property
+作用：用于设置DML或DDL触发器的触发属性
+语法：dbms_ddl.set_trigger_firing_property(trig_owner in varchar2,trig_name in varchar2,fire_once in boolean);
+其中，fire_once指定触发器属性，当设置为true时只触发一次，false时总是被触发。
+
+
+十、dbms_shared_pool
+1、概述
+作用：提供了对共享池的一些过程和函数访问,它使用户可以显示共享池中的对象尺寸,绑定对象到共享池,清除绑定到共享池的对象.为了使用该包,必须运行dbmspool.sql脚本来建立该包.
+
+2、包的组成
+1）、sizes
+作用：用于显示在共享池中大于指定尺寸的对象
+语法：dbms_shared_pool.sizes(minsize number);
+其中minsize用于指定要显示对象的最小尺寸(单位KB)
+例子：exec dbms_shared_pool.sizes(100);
+
+2）、keep
+作用：用于将特定对象绑定到共享池中
+语法：dbms_shared_pool.keep(name varchar2,flag char default 'P');
+其中name指定要绑定的对象名，flag指定对象类型(P是过程、函数和包；T是对象类型；R是触发器；Q是序列)。
+例子：exec dbms_shared_pool.keep('standard');
+
+3）、unkeep
+作用：用于清除被绑定到共享池中的对象
+语法：dbms_shared_pool.unkeep(name varchar2,flag char default 'P');
+例子：exec dbms_shared_pool.unkeep('standard');
+
+4）、aborted_request_threshold
+作用：用于设置共享池终止请求的阈值。
+语法：dbms_shared_pool.aborted_request_threshold(threshold_size number);
+例子：threshold_size用于指定共享池阈值尺寸
+例子：exec dbms_shared_pool.aborted_request_threshold(100000);
+
+
+十一、dbms_random
+1、概述
+提供了内置的随机数生成器,可以用于快速生成随机数.
+
+2、包的组成
+1）、initialize
+作用：用于初始化dbms_random包，必须提供随机数种子。
+语法：dbms_random.initialize(seed in binary_integer);
+其中seed指定随机数种子。
+
+2）、seed
+作用：用于复位随机数种子
+语法：dbms_random.seed(seed in binary_integer);
+
+3）、random
+作用：用于生产随机数
+语法：dbms_random.randon return binary_integer;
+
+4）、terminate
+作用：关闭DBMS_RANDOM包
+语法：dbms_random。terminate；
+
+3、综合例子
+declare
+num int;
+seed number:=1000000;
+begin
+dbms_random.initialize(seed);
+for i in 1..10 loop
+num:=abs(dbms_random.random()/seed);
+dbms_output.put_line(num);
+end loop;
+dbms_random.terminate.
+end;
+
+
+十二、dbms_logmnr
+1、概述
+作用:通过使用包DBMS_LOGMNR和DBMS_LOGMNR_D,可以分析重做日志和归档日志所记载的事务变化,最终确定误操作(例如DROP TABLE)的时间,跟踪用户事务操作,跟踪并还原表的DML操作.
+
+2、包的组成
+1）、dbms_logmnr.add_logfile
+作用：用于为日志分析列表增加或删除日志文件，或者建立日志分析列表。
+语法：dbms_logmnr.add_logfile(LogFileName in varchar2,Option in binary_integer default addfile);
+其中LogFileName指定要增加或删除的日志文件名称，Option指定选项(dbms_logmnr.new建立日志分析列表，dbms_logmnr.addfile增加日志文件，dbms_logmnr.removefile删除文件)
+
+2）、dbms_logmnr.start_logmnr
+作用：用于启动logmnr会话
+语法：dbms_logmnr.start_logmnr(startscn in number default o,endscn in number default 0,
+starttime in date default '01-jan-1988',endtime in date default '01-jan-2988',
+dictfilename in varchar2 default '',option in binary_integer default 0);
+其中startscn指定日志分析的起始scn值，endscn指定日志分析的结束scn值，starttime指定日志分析的起始时间，endtime指定日志分析的结束时间，
+dictfilename指定日志分析要使用的字典文件名，option指定logminer分析选项。
+
+3）、dbms_logmnr.end_logmnr
+作用：结束logminer会话
+语法：dbms_logmnr.end_logmnr
+
+4）、dbms_logmnr.mine_value
+作用：用于返回要摘取的列信息，该函数在启动logminer之后调用。
+语法：dbms_logmner.mine_value(sql_redo_undo in raw,column_name in varchar2 default '') return varchar2;
+其中sql_redo_undo用于指定要摘取的数据(redo_value或undo_value)，column_name用于指定要摘取的列(格式：schema.table.column);
+
+5）、dbms_logmnr.column_present
+作用：用于确定列是否出现在数据的redo部分或undo部分
+语法：dbms_logmnr.column_present(sql_redo_undo in raw,column_name in varchar2 default '') return number;
+其中如果列在redo或undo部分存在，则返回1，否则返回0。
+
+6）、dbms_logmnr_d.build
+作用：用于建立字典文件
+语法：dbms_logmnr_d.build(dictionary_filename in varcahr2,dictionary_location in varchar2,options in number);
+其中dictionary_filename指定字段文件名，dictionary_location指定文件所在位置，options指定字典要写入位置(store_in_flat_file:文本文件,store_in_redo_log2:重新日志)
+
+7）、dbms_logmnr_d.set_tablespace
+作用：用于改变logminer表所在的表空间
+语法：dbms_logmnr_d.set_tablespace(new_tablespace in default varchar2,dict_tablespace in default varchar2,spill_tablespace in default varchar2);
+其中new_tablespace指定logminer表所在的表空间，dict_tablespace指定字典表所在表空间，spill_tablespace指定溢出表所在表空间。
+
+3、综合例子
+首先建表temp，然后执行dml操作和日志切换操作，生产归档日志。
+sqlplus /nolog
+connect system/manager@test
+create table temp(cola number,colb varchar2(10));
+alter system swith logfile;
+insert into temp values(9,'A');
+update temp set cola=10;
+commit;
+alter system switch logfile;
+delete from temp;
+alter system switch logfile;
+
+1）、建立字典文件
+说明：字典文件用于存放表及对象ID号之间的对应关系。从9i开始，字典信息既可被摘取到字段文件中，也可被摘取到重做日志中。摘取字典信息到字典文件方法如下：
+（1）、设置字典文件所在目录
+alter system set utl_file_dir="g:\test"
+scope=spfile;
+（2）、重启Oracle Server
+sqlplus /nolog
+conn sys/test@test as sysdba
+shutdown immediate
+startup
+（3）、摘取字典信息
+begin
+dbms_logmnr_d.build(dictionary_filename=>'dict.ora',dictionary_location=>'g:\test\logminer');
+end;
+
+2）、建立日志分析列表
+（1）、停止Oracle Server并装载数据库
+sqlplus /nolog
+conn sys/test@test as sysdba
+shutdown immediate
+startup mount
+（2）、建立日志分析列表
+begin
+dbms_logmnr.add_logfile(options=>dbms_logmnr.new,logfilename=>'g:\test\arc1\test1.arc');
+end;
+（3）、增加其他日志文件(可选)
+begin
+dbms_logmnr.add_logfile(option=>dbms_logmnr.addfile,logfilename=>'g:\test\arc1\test12.arc');
+end;
+
+3）、启动LogMiner分析
+begin
+dbms_logmnr.start_logmnr(dictfilename=>'g:\test\logminer\dict.ora',
+starttime=>to_date('2004-04-03:10:10:00','YYYY-MM-DD:HH24:MI:SS'),
+endtime=>to_date('2004-04-03:15:30:00','YYYY-MM-DD:HH24:MI:SS'));
+end;
+
+4）、查看日志分析结果
+说明：日志分析结果只能在当前会话查看。
+（1）、显示DML分析结果
+select operation,sql_redo,sql_undo from v$logmnr_contents where seg_name='TEMP';
+（2）、显示DDL分析结果
+select to_cahr(timestamp,'yyyy-mm-dd hh23:mi:ss') time,sql_redo from v$logmnr_contents where sql_redo like '%create%' or sql_redo like '%create%';
+（3）、显示在用字典文件
+select db_name,filename from v$logmnr_dictionary;
+
+5）、结束LogMiner
+execute dbms_logmnr.end_logmnr;
+
+
+十三、dbms_flashback
+1、概述
+作用:用于激活或禁止会话的flashback特征,为了使得普通用户可以使用该包,必须要将执行该包的权限授予这些用户，grant execute on dbms_flashback to scott;
+
+2、包的组成
+1）、enable_at_time
+作用：用于以时间方式激活会话的flashback
+语法：dbms_flashback.enable_at_time(query_time in timestamp);
+其中query_time指定flashback对应的时间点；
+
+2）、enable_at_system_change_number
+作用：用于以系统改变号（scn）方式激活会话的flashback
+语法：dbms_flashback.enable_at_system_change_number(query_scn in number);
+其中query_scn指定flashback对应的scn值。
+
+3）、get_system_change_number
+作用：用于取得系统的当前scn值
+语法：dbms_flashback.get_system_change_number return number;
+
+4）、disable
+作用：用于禁止会话的flashback模式
+语法：dbms_flashback.disable;
+
+3、综合例子
+1）、取得SCOTT雇员工资及系统SCN值
+select sal from emp where ename='scott';--3600
+seelct dbms_flashback.get_system_change_number from dual;--717402
+
+2）、更新scott工资，并休眠5分钟
+update emp set sal=3000 where ename='scott';
+commit;
+exec dbms_lock.sleep(300);
+
+3）、使用dbms_flashback取得特定scn时间点对应的数据
+exec dbms_flashback.enable_at_system_change_number(717402);
+select sal from emp where ename='scott';--3600
+exec dbms_flashback.disable;
+select sal from emp where ename='scott';--3000
+
+
+十四、dbms_obfuscation_toolkit
+1、概述
+作用:用于加密和解密应用数据,另外还可以生成密码检验和.通过加密输入数据,可以防止黑客或其他用户窃取私有数据;而通过结合使用加密和密码检验和,可以防止黑客破坏初加密的数据.
+当使用该包加密数据时,要求被加密数据的长度必须为8字节的整数倍.当使用DES算法加密数据时,密钥长度不能低于8字节;当使用DES3算法加密数据时,密钥长度不能低于16字节.
+
+2、包的组成
+1）、DESencrypt
+作用：用于使用DES算法对输入数据进行加密，并生成加密格式的数据。密钥长度不能低于8字节且输入数据必须是8字节的整数倍。
+语法1：dbms_obfuscation_toolkit.DESencrypt(input raw,key raw,encrypted_date out raw);
+语法2：dbms_obfuscation_toolkit.DESencrypt(ipput_string varchar2,key_string varchar2,encrypted_string out varchar2);
+其中input\input_string指定输入的二进制数据或输入字符串，key\key_string指定加密密钥，encrypted_date\encrypted_string指定存放加密结果的字符串。
+
+2）、DESdecrypt
+作用：用于对使用DES算法所生成的加密数据进行解密。当对数据进行
+解密时，解密密钥必须要与加密密钥完全一致。
+语法1：dbms_obfuscation_toolkit.desdecrypt(input raw,key raw,decrypted_data out raw);
+语法2：dbms_obfuscation_toolkit.desdecrypt(input_string varchar2,key_string varchar2,decrypted_string out varchar2);
+其中decrypted_data\decrypted_string指定存放解密结果的字符串。
+
+3）、DES3encrypt
+作用：用于使用DES3算法对输入数据进行加密，并生成加密格式的数据。密钥不能少于16个字符并且数据数据必须是8字节的整数倍。
+语法1：dbms_obfuscation_toolkit.DES3encrypt(input raw,key raw,encrypted_data out raw);
+语法2：dbms_obfuscation_toolkit.DES3encrypt(input_string varchar2,key_string varchar2,encrypted_string out varchar2);
+
+4）、DES3decrypt
+作用：用于对使用DES3算法所生成的加密数据进行解密。解密密钥必须要与加密密钥完全一致。
+语法1：dbms_obfuscation_toolkit.DES3decrypt(input raw,key raw,decrypted_data out raw);
+语法2：dbms_obfuscation_toolkit.DES3decrypt(input_string varchar2,key_string varchar2,encrypted_string out varchar2);
+
+5）、md5
+作用：用于使用md5算法生成密码校验码。可以防止其他用户破坏被传输的加密数据。
+语法1：dbms_obfuscation_toolkit.md5(input raw,checksum out raw);
+语法2：dbms_obfuscation_toolkit.md5(input_string varchar2,checksum_string out varchar2);
+其中checksum_string(checksum)指定存放密码校验码的字符串。
+
+3、综合例子
+1）、简单例子
+declare 
+encrypted_string varchar2(100);
+decrypted_string varchar2(100);
+str1 varchar2(8):='中国你好';
+key varchar2(16):='ABCDFDSDSASS$1234';
+str2 varchar2(100);
+str3 varchar2(100);
+begin
+--DESencrypt
+dbms_obfuscation_toolkit.DESencrypt(input_string=>'SCOTTsco',key_string=>'abcd1234',encrypted_string=>encrypted_string);
+dbms_output.put_line(encrypted_string);
+--DESdecrypt
+dbms_obfuscation_toolkit.DESdecrypt(input_string=>encrypted_string,key_string=>'abcd1234',decrypted_string=>decrypted_string);
+dbms_output.put_line(decrypted_string);
+--DES3encrypt
+dbms_obfuscation_toolkit.DES3encrypt(input_string=>str1,
+key_string=>key,encrypted_string=>str2);
+dbms_output.put_line(str2);
+--DES3decrypt
+dbms_obfuscation_toolkit.DES3encrypt(input_string=>str2,
+key_string=>key,decrypted_string=>str3);
+dbms_output.put_line(str3);
+--md5
+dbms_obfuscation_toolkit.md5(input_string=>str1,checksum_string=>str2);
+dbms_output.put_line(str2);
+end;
+
+2）、例子2
+说明：为了防止黑客窃取数据，应该对数据进行加密，为防止黑客窜改数据，应该使用密码校验来确保数据的正确性。
+下面使用管道发送加密信息并确保消息正确性
+（1）、建立过程send_message
+说明：用于生产消息的密码校验码、加密信息，并分别发到不同的管道。
+create or replace procedure send_message(message varchar2) is
+flag int;
+checksum varchar2(100);
+key varchar2(100);
+encry_str varchar2(100);
+begin
+dbms_obfuscation_toolkit.md5(input_string=>message,checksum_string=>checksum);--用MD5为消息生产密码校验码
+flag:=dbmspipe.create_pipe('checksum');--建立checksum管道
+if flag=0 then
+dbms_pipe.pack_message(checksum);
+flag:=dbms_pipe.send_message('checksum');--发送校验码
+end if;
+dbms_obfuscation_toolkit.desencrypt(input_string=>message,key_string=>key,encrypted_string=>encry_str);--加密要发送的消息。
+flag:=dbms_pipe.create_pipe('encrypt');--建立encrypt管道
+if flag=0 then
+dbms_pipe.pack_message(encrypt);
+flag:=dbms_pipe.send_message('encrypt');--发送信息
+end if;
+end;
+（2）、建立过程receive_message
+说明：用于接收校验码和消息
+create or replace procedure receive_message is
+flag int;
+source_checksum varchar2(100);
+dest_checksum varchar2(100);
+key varchar2(100):='123456778SAD';
+encry_str varchar2(100);
+decry_str varchar2(100);
+begin
+flag:=dbms_pipe.receive_message('encrypt');--接收加密消息
+if flag=0 then
+dbms_pipe.unpack_message(encry_str);
+flag:=dbms_pipe.remove_pipe('encrypt');
+end if;
+flag:=dbms_pipe.receive_message('checksum');--接收加密消息
+if flag=0 then
+dbms_pipe.unpack_message(source_checksum);
+flag:=dbms_pipe.remove_pipe('checksum');
+end if;
+dbms_obfuscation_toolkit.desdecrypt(input_string=>encry_str,
+key_string=>key,decrypted_string=>decry_str);--使用密钥解密信息
+dbms_obfuscation_toolkit.md5(input_string=>decry_str,checksum_string=>dest_checksum);--生产密码校验码
+if trim(source_checksum)=trim(dest_checksum) then
+dbms_output.put_line(decry_str);
+else
+dbms_output.put_line('消息被窜改');
+end if;
+end;
+（3）、使用
+会话1：exec send_message('中国你好');
+会话2：exec scott.receive_message;
+
+
+十五、dbms_space
+1、概述
+作用:用于分析段增长和空间的需求。
+
+2、包的组成
+1）、unused_space
+作用：用于返回对象(表、索引、簇)的未用空间
+语法：dbms_space.unused_space(segment_owner in varchar2,
+segment_name in varchar2,segment_type in varchar2,
+total_blocks out number,total_bytes out number,
+unused_blocks out number,unused_bytes out number,
+last_used_extent_file_id out number,
+last_used_extent_block_id out number,
+last_used_block out number,
+partition_name in varchar2 default null);
+其中segment_owner指定段所有者，segment_name指定段名，segment_type指定段类型，
+tatal_blocks返回段的总计块个数，total_bytes返回段的总计字节数，
+unused_blocks返回段的末用块个数，unused_byte返回段未用字节，
+last_used_extent_file_id返回包含数据的最后一个区所在文件的编号，
+last_used_extent_block_id返回包含数据的最有一个区的块编号，
+last_used_block返回包含数据的最有一个区的最后一个块，
+partition_name指定要分析的段分区号。
+
+2）、free_blocks
+作用：用于返回对象（表、索引、簇）的空闲块信息。
+语法：dbms_space.free_blocks(segment_owner in varchar2,segment_name in varchar2,segment_type in varchar2,freelist_group_id in number,
+free_blks out number,scan_limit in number default null,partition_name in varchar2 default null);
+其中freelist_group_id指定返回空闲列表组所对应的空闲列表个数，scan_limit指定要读取的空闲列表块的最大个数。
+
+3）、space_usage
+作用：显示段HWM(High Water Mark)以下数据块的空闲使用情况，并且该过程只适用于自动段空间管理的表空间。
+语法：dbms_space.space_usage(segment_owner in varchar2,segment_name in varchar2,segment_type in varchar2,unformatted_blocks out number,unformatted_bytes out number,
+fs1_blocks out number,fs1_bytes out number,
+fs2_blocks out number,fs2_bytes out number,
+fs3_blocks out number,fs3_bytes out number,
+fs4_blocks out number,fs4_bytes out number,
+full_blocks out number,full_bytes out number,
+partition_name in varchr2 default null);
+其中unformatted_blocks用于返回未格式化块的个数，unformatted_bytes用于返回未格式化的字节数，
+fs1_blocks用于返回空闲空间在0~25%之间的块个数，fs1_bytes返回空闲空间在0~25%之间的字节数，2范围为25%~50%之间，3范围为50%~75%之间，4范围为75%~100%之间。
+full_blocks返回段的总计块个数，full_bytes返回段的总计字节数。
+
+3、综合例子
+1）、简单例子
+例子：
+declare
+total_blocks number;
+total_bytes number;
+unused_blocks number;
+unused_bytes number;
+last_used_extent_file_id number;
+last_used_extent_block_id number;
+last_used_block number;
+free_blocks number;
+variable unf number,
+variable unfb number,
+variable fs1 number,
+variable fs1b number,
+variable fs2 number,
+variable fs2b number,
+variable fs3 number,
+variable fs3b number,
+variable fs4 number,
+variable fs4b number,
+variable full number,
+variable fullb number,
+begin
+--unused_space
+dbms_space.unused_space('SYSTEM','T1','TABLE',total_blocks,total_bytes,unused_blocks,unused_bytes,last_used_extent_file_id,last_used_extent_block_id,last_used_block);
+dnms_output.put_line(to_char('HWM='||total_blocks-unused_blocks-1));
+--free_blocks
+dbms_space.free_blocks('SYSTEM','T1','TABLE',0,free_blocks);
+dbms_output.put_line('组0的空闲列表个数'||free_blocks);
+--space_usage
+dbms_space.space_usage('U1','T','TABLE',:nuf,:unfb,:fs1,:fs1b,:fs2,:fs2b,:fs3,:fs3b,:fs4,:fs4b,:fnull,:fnullb);
+end;
+
+
+十六、dbms_space_admin
+1、概述
+作用:提供了局部管理表空间的功能
+
+2、包的组成
+1）、segment_verify
+作用：用于检查段的区映像是否与位图一致
+语法：dbms_space_admin.segment_verify(tablespace_name in varchar2,header_relative_file in positive,heaeder_block in positive,verify_option in positive default segment_verify_extents);
+其中tablespace_name指定段所在的表空间，header_relative_file指定段头所在的相对文件好，heaeder_block指定段头所在的块号，verify_option指定检查方式。
+例子：exec dbms_space_admin.segment_verify('',9,68);
+
+2）、segment_corrupt
+作用：用于将段标记为损坏或有效。
+语法：dbms_space_admin.segment_corrupt(tablespace_name in varchar2,header_relative_file in positive,header_block in positive,corrupt_option in positive default segment_mark_corrupt);
+其中corrupt_option指定损坏(segment_mark_corrupt)或有效(segment_mark_valid)选项。
+例子：dbms_space_admin.segment_corrupt('USER3',9,68);
+
+3）、segment_drop_corrupt
+作用：用于删除被标记为损坏的段。
+语法：dbms_space_admin.segment_drop_corrupt(tablespace_name in varchar2,header_relative_file in positive,header_block in positive);
+例子：exec dbms_space_admin.segment_drop_corrupt('USER3',9,68);
+
+4）、segment_dump
+作用：用于转储特定段的头块和区映像块
+语法：dbms_space_admin.segment_dump(tablespace_name in varchar2,header_relative_file in positive,header_block in positive,dump_option in positive default defult segment_dump_extent_map);
+其中dump_option指定转储特项。
+
+5）、tablespace_verify
+作用：检查表空间所有段的位图和区映像。
+语法：dbms_space_admin.tablespace_verify(tablespace_name in varchar2,verify_option in positive default tablespace_verify_bitmap);
+例子：exec dbms_space_admin.tablespace_verify('USERS3');
+
+6）、tablespace_fix_bitmaps
+作用：用于将特定范围的空间标记为空闲或已用。
+语法：dbms_space_admin.tablespace_fix_bitmaps(tablespace_name in varchar2,dbarange_relative_file in positive,dbarange_begin_block in positive,
+dbarange_end_block in positive,fix_option in positive);
+其中dbarange_relative_file指定DBA范围内的相对文件号，dbarange_begin_block指定数据文件区的起始块编号，dbarange_end_block指定数据文件区的结束块编号，
+fix_option指定选项(TABLESPACE_EXTENT_MAKE_FREE或TABLESPACE_EXTENT_MAKE_USED)
+例子：exec dbms_space_admin.tablespace_fix_bitmaps('USES',4,33,83,7);
+
+7）、tablespace_rebuild_bitmaps
+作用：用于重新建立合适的位图。如果没有指定位图块，则将重建特定表空间的所有位图块。
+语法：dbms_space_admin.tablespace_rebuild_bitmaps(tablespace_name in varchar2,bitmap_relative_file in positive default null,bitmap_block in positive default null);
+其中bitmap_relative_file指定位图块的相对文件号，bitmap_block指定位图块的块号。
+例子：exec dbms_space_admin.tablespace_rebuild_bitmaps('users3');
+
+8）、tablespace_rebuild_quotas
+作用：用于重建表空间配额。
+语法：dbms_space_admin.tablespace_rebuild_quotas(tablespace_name in varchar2);
+例子：exec dbms_space_admin.tablespace_rebuild_quotas('USERS3');
+
+9）、tablesapce_migrate_from_local
+作用：用于将局部管理表空间转变为字典管理表空间。
+语法：dbms_space_admin.tablesapce_migrate_from_local(tablespace_name in varchar2);
+例子：exec dbms_space_admin.tablesapce_migrate_from_local('USERS1');
+
+10）、tablespace_miorate_to_local
+作用：用于将字典管理表空间转变为局部管理表空间
+语法：dbms_space_admin.tablespace_miorate_to_local(tablespace_name in varchar2);
+其中tablespace_name指定字典管理表空间名。
+例子：dbms_space_admin.tablespace_miorate_to_local('USERS1');
+
+11）、tablespace_reloacte_bitmaps
+作用：用于移动位图到指定位置。
+语法：dbms_space_admin.tablespace_reloacte_bitmaps(tablespace_name in varchar2,relative_fno in binary_integer,block_number in binary_integer);
+其中relative_fno指定相对文件号，block_number指定数据块编号。
+例子：exec dbms_space_admin.tablespace_reloacte_bitmaps('USERS3',9,8);
+
+12）、tablespace_fix_segment_states
+作用：用于修正表空间的段状态。当升级表空间时，如果出现例程终止，那么为了重新升级表空间，必须要修正该表空间中相应段的状态。
+语法：dbms_space_admin.tablespace_fix_segment_states(tablespace_name);
+例子：exec dbms_space_admin.tablespace_fix_segment_states('USERS3');
+
+
+十七、dbms_tts
+1、概述
+作用:用于检查表空间集合是否是自包含的,并在执行了检查之后,将违反自包含规则的信息写入到临时表TRANSPORT_SET_VIOLATIONS中.
+
+2、包的组成
+1）、transport_set_check
+作用：用于检查表空间集合是否是自包含的。
+语法：dbms_tts.transport_set_check(ts_list in varchar2,incl_constraints in boolean default,full_closure in boolean default false);
+其中ts_list指定表空间列表，如果要指定多个表空间则使用逗号隔开，incl_constraints指定是否要检查完整性约束，full_closure指定是否要进行完全或部分相关性检查。
+例子：
+exec sys.dbms_tts.transport_set_check('users1,users2');
+select * from sys.transport_set_violations;
+在查询临时表transport_set_violations时，如果返回信息，则会显示违反自包含表空间规则的原因，如果没有返回则表示表空间时自包含的。
+
+2）、downgrade
+作用：用于降级搬移表空间的相关数据
+语法：dbms_tts.downgrade;
+
+
+十八、dbms_repair
+1、概述
+作用:用于检测,修复在表和索引上的损坏数据块.
+
+2、包的组成
+1）、admin_tables
+语法：dbms_repair.admin_tables(table_name in varchar2,table_type in binary_integer,action in binary_integer,tablespace in varchar2 default null);
+其中table_name用于指定要处理的表名，必须要指定前缀orphan或repair,table_type指定表类型(orphan或repair_table)，
+action指定要执行的管理操作(建立表create_action，删除所有行purge_action，删除表drop_action)，tablespace用于指定表所在的表空间。
+例子：
+exec dbms_repair.admin_tables('repair_table',dbms_repair.repair_table,dbms_repair.create_action,'system');
+exec dbms_repair.admin_tables('orphan_table',dbms_repair.orphan_table,dbms_repair.create_action,'system');
+上面例子执行第一条语句后，会建立修复表repair_table，并且该修复表用于存放损坏数据块的信息；执行第二条语句后，会建立孤表orphan_table，该表用于存放指向损坏数据块的索引入口信息。
+
+2）、check_object
+作用：用于检查特定对象，并将损坏信息填写到修复表中。
+语法：dbms_repair.check_object(schema_name in varchar2,object_name in varchar2,partition_name in varchar2 default null,object_type in binary_integer default tables_object,
+repair_table_name in varchar2 default 'repair_table',flags in binary_integer default null,relative_fno in binary_integer default null,
+block_start in binary_integer default null,block_end in binary_integer default null,corrupt_count out binary_integer);
+其中schema_name指定要检查对象的方案名，object_name指定要检查的对象名，partition_name用于指定要检查的分区名，object_type指定要检查对象的类型(table_object或index_object)，
+repair_table_name指定要被填写的修复表，flags为将来使用而保留，relative_fno指定相对文件号，block_start指定要检查的起始块号，block_end指定要检查的结束块号，
+corrupt_count用于返回损坏的块个数。
+例子：
+var corr_count number;
+exec dbms_repair.check_object('scott','emp',corrupt_count=>:corr_count);
+print corr_count
+
+3）、dump_orphan_keys
+作用：用于报告指向损坏数据块行的索引入口，并且会将相应索引入口的信息插入到孤表中。
+语法：dbms_repair.dump_orphan_keys(schema_name in varchar2,object_name in varchar2,
+partition_name in varchar2 default null,object_type in binary_integer default index_object,
+repair_table_name in varchar2 default 'repair_table',orphan_table_name in varchar2 default 'orphan_keys_table',
+flags in binary_integer default null,key_count out binary_integer);
+其中object_type指定对象类型(index_object),repair_table_name指定修复表名，orphan_table_name指定孤表名，key_count用于返回索引入口个数。
+例子：
+var key_count number
+exec dbms_repair.dump_orphan_keys('scott','pk_emp',orphan_table_name=>'orphan_table',key_count=>:key_count);
+print key_count
+
+4）、fix_corrupt_blocks
+作用：修复被损坏的数据块，这些被损坏的数据块是在执行了check_object之后生成的。
+语法：dbms_repair.fix_corrupt_blocks(schema_name in varchar2,object_name in varchar2,partition_name in varchar2 default null,
+object_type in binary_integer default table_object,repair_table_name in varchr2 default 'repair_table',
+flags in binary_integer default null,fix_count out binary_integer);
+其中object_type指定对象类型(table_object)，fix_count返回修复的数据块个数。
+例子：
+var fix_count number
+exec dbms_repair.fix_corrup_block('scott','emp',fix_count=>:fix_count);
+print fix_count
+
+5）、rebuild_freelists
+作用：用于重建指定对象的空闲列表
+语法：dbms_repair.rebuild_freelists(schema_name in varchar2,object_name in varchar2,partition_name in varchar2 default null,
+object_type in binary_integer default table_object);
+其中object_type指定对象类型(table_object)。
+例子：exec dbms_repair.rebuild_freelists('scott','emp');
+
+6）、skip_corrupt_blocks
+作用：用于指定在扫描对象(表或索引)时跳过损坏块。
+语法：dbms_repair.skip_corrupt_blocks(schema_name in varchar2,object_name in varchar2,object_type in binary_integer default table_object,
+flag in binary_integer default skip_flag);
+其中object_type指定对象类型(table_object)，flags指定是否要跳过损坏块（skip_flao跳过，no_skip_flag不跳过）
+例子：exec dbms_repair.skip_corrupt_blocks('scott','emp'）;
+
+7）、segment_fix_status
+作用：用于修复位图入口的损坏
+语法：dbms_repair.segment_fix_status(segment_owner in varchar2,segment_name in varchar2,segment_type in binary_integer default table_object,
+file_number in binary_integer default null,block_number in binary_integer default null,
+status_value in binary_integer default null,partition_name in varchar2 default null);
+其中segment_owner指定段所有者，segment_name指定段名，segment_type指定段类型，file_number指定数据块所在的相对文件号，
+block_number指定数据块号，status_value指定块状态值（1：全块，2：0~25%，3：25%~50%，4：50%~75%，5：75%~100%）
+partition_name指定分区名。
+例子：exe dbms_repair.segment_fix_status('sys','mytab');
+
+
+十九、dbms_resource_manager
+1、概述
+作用:用于维护资源计划,资源使用组和资源计划指令;包dbms_resource_manager_privs用于维护与资源管理相关的权限.
+
+2、包的组成
+1）、dbms_resource_manager.create_plan
+作用：建立资源计划
+语法：dbms_resource_manager.create_plan(plan in varchar2,comment in varchar2,cpu_mth in varchar2 default 'EMPHASIS',
+active_sess_pool_mth in varchar2 default 'ACTIVE_SESS_POOL_ABSOLUTE',
+parallele_degree_limit_mth in varchar2 default 'PARALLEL_DEGREE_LIMIT_ABSOLUTE',
+queueing_mth in varchar2 default 'FIFO_TIMEOUT');
+其中plan指定资源计划名，comment指定用户注释信息，cpu_mth指定cpu资源的分配方法，active_sess_pool_mth指定最大活动会话的分配方法，
+parallele_degree_limit_mth指定并行度的分配方法，queueing_mth指定活动会话池的队列策略类型。
+
+2）、dbms_resource_manager.create_simple_plan
+作用：用于建立简单资源计划，该资源计划最多包含8个资源使用组。
+语法：dbms_resource_manager.create_simple_plan(simple_plan in varchar2 default,
+consumer_group1 in varchar2 default,group1_cpu in number default,
+consumer_group2 in varchar2 default,group2_cpu in number default,
+consumer_group3 in varchar2 default,group3_cpu in number default,
+consumer_group4 in varchar2 default,group4_cpu in number default,
+consumer_group5 in varchar2 default,group5_cpu in number default,
+consumer_group6 in varchar2 default,group6_cpu in number default,
+consumer_group7 in varchar2 default,group7_cpu in number default,
+consumer_group8 in varchar2 default,group8_cpu in number default);
+
+3）、dbms_resource_manager.update_plan
+作用：用于更新资源计划的定义
+语法：dbms_resource_manager.update_plan(plan in varchar2,
+new_comment in varchar2 default null,new_cpu_mth in varchar2 default null,
+new_active_sess_pool_mth in varchar2 default null,new_parallel_degree_limit_mth in varchar2 default null,
+new_queueing_mth in varchar2 default null);
+其中new_comment指定用户的新的注释信息，new_cpu_mth指定cpu资源的新的分配方法，
+new_active_sess_pool_mth指定最大活动会话的新的分配方法，
+new_parallel_degree_limit_mth指定并行度的新的分配方法，
+new_queueing_mth指定活动会话池的新的队列策略类型。
+
+4）、dbms_resource_manager.delete_plan
+作用：用于删除资源计划
+语法：dbms_resource_manager.delete_plan(plan in varchar2);
+
+5）、dbms_resource_manager.delete_plan_cascade
+作用：用于删除资源计划及其所有后代（资源计划指令、子计划和资源使用组）
+语法：dbms_resource_manager.delete_plan_cascade(plan in varchar2);
+
+6）、dbms_resource_manager.greate_consumer_group
+作用：用于建立资源使用组
+语法：dbms_resource_manager.greate_consumer_group(consumer_group in varchar2,
+comment in varchar2,cpu_mth in varchar2 default 'ROUND-ROBIN');
+其中consumer_group指定资源使用组名。
+
+7）、dbms_resource_manager.update_consumer_group
+作用：用于更新资源使用组信息
+语法：dbms_resource_manager.update_consumer_group(
+consumer_group in varcahr2,new_comment in varchar2,new_cpu_mth in varchar2 default null);
+
+8）、dbms_resource_manager.delete_consumer_group
+作用：删除资源使用组
+语法：dbms_resource_manager.delete_consumer_group(consumer_group in varchar2);
+
+9）、dbms_resource_manager.create_plan_directive
+作用：建立资源计划指令
+语法：dbms_resource_manager.create_plan_directive(
+plan in varchar2,group_or_subplan in varchar2,
+comment in varchar2,cpu_p1 in number default null,
+cpu_p2 in number default null,cpu_p3 in number default null,
+cpu_p4 in number default null,cpu_p5 in number default null,
+cpu_p6 in number default null,cpu_p7 in number default null,
+cpu_p8 in number default null,
+active_sess_pool_p1 in number default unlimited,
+queueing_p1 in number default unlimited,
+switch_group in varchar2 default null,
+switch_time in number default unlimited,
+switch_estimate in boolean default false,
+max_est_exec_time in number default nulimited,
+undo_pool in number default unlimited,
+paralle1_degree_limit_p1 in number default unlimited);
+其中group_or_subplan指定资源使用组或者子计划的名称，cpu_p1指定CPU资源分配方法的第一个参数(p2是第二个参数。。。)，
+active_sess_pool_p1指定最大活动会话分配方法的第一个参数，queueing_p1指定队列超时时间，
+switch_group指定到达切换时间时要切换到的资源使用组，switch_time指定切换时间，
+switch_estimate默认false，设置为true时表示通知Oracle使用执行时间估计自动切换资源使用组。
+undo_pool指定资源使用组的undo池尺寸，paralle1_degree_limit_p1指定并行度分配方法的第一个参数。
+
+10）、dbms_resource_manager.update_plan_directive
+作用：用于更新资源计划指令
+语法：dbms_resource_manager.update_plan_directive(
+plan in varchar2,group_or_subplan in varchar2,
+new_comment in varchar2,cpu_p1 in number default null,
+new_cpu_p2 in number default null,new_cpu_p3 in number default null,
+new_cpu_p4 in number default null,new_cpu_p5 in number default null,
+new_cpu_p6 in number default null,new_cpu_p7 in number default null,
+new_cpu_p8 in number default null,
+new_active_sess_pool_p1 in number default unlimited,
+new_queueing_p1 in number default unlimited,
+new_switch_group in varchar2 default null,
+new_switch_time in number default unlimited,
+new_switch_estimate in boolean default false,
+new_max_est_exec_time in number default nulimited,
+new_undo_pool in number default unlimited,
+new_paralle1_degree_limit_p1 in number default unlimited);
+其中new_cpu_p1指定CPU资源分配方法的第一个参数(p2是第二个参数。。。)，
+new_active_sess_pool_p1指定最大活动会话分配方法的第一个参数，new_queueing_p1指定队列超时时间，
+new_switch_group指定到达切换时间时要切换到的资源使用组，new_switch_time指定切换时间，
+new_switch_estimate默认false，设置为true时表示通知Oracle使用执行时间估计自动切换资源使用组。
+new_undo_pool指定资源使用组的undo池尺寸，new_paralle1_degree_limit_p1指定并行度分配方法的第一个参数。
+
+11）、dbms_resource_manager.delete_plan_directive
+作用：用于删除资源计划指令
+语法：dbms_resource_manager.delete_plan_directive(plan in varchr2,group_or_subplan in varchar2);
+
+12）、dbms_resource_manager.create_pending_area
+作用：用于建立pending内存区，并且该内存区将用于改变资源管理对象
+语法：dbms_resource_manager.create_pending_area；
+
+13）、dbms_resource_manager.validate_pending_area
+作用：用于校验资源管理器的改变
+语法：dbms_resource_manager.validate_pending_area;
+
+14）、dbms_resource_manager.clear_pending_area
+作用：用于清除资源管理器的改变
+语法：dbms_resource_manager.clear_pending_area;
+
+15）、dbms_resource_manager.submit_pending_area
+作用：用于提交资源管理器的改变
+语法：dbms_resource_manager.submit_pending_area;
+
+16）、dbms_resource_manager..set_initial_consumer_group
+作用：用于指定用户的初始资源使用组
+语法：dbms_resource_manager.set_initial_consumer_group(user in varchar2,consumer_group in varchar2);
+其中user指定用户名，consumer_group指定用户的初始资源使用组名。
+
+17）、dbms_resource_manager.switch_consumer_group_for_sess
+作用：dbms_resource_manager.switch_consumer_group_for_sess(session_id in number,session_serial in number,consumer_group in varchr2);
+其中session_id指定会话ID号，session_serial指定会话序列号。
+
+18）、dbms_resource_manager.switch_consumer_group_for_user
+作用：用于改变特定用户所有会话的资源使用组
+语法：dbms_resource_manager.switch_consumer_group_for_user(user in varchar2,consumer_group in varchar2);
+
+19）、dbms_resource_manager_privs.grant_system_privilege
+作用：用于将资源管理权限授予用户或角色
+语法：dbms_resource_manager_privs.grant_system_privilege(grantee_name in varchar2,
+privilege_name in varchar2 default 'administer_resource_manager',admin_option in boolean);
+其中grantee_name指定被授权的用户或角色，privilege_name指定要授予的资源管理权限，
+admin_option指定是否可以转授资源管理权限(true为能，false为不能)
+例子：exec dbms_resource_manager_prive.grant_system_privilege('scott','administer_resource_manager',true)
+
+20）、dbms_resource_manager_privs.revoke_system_privilege
+作用：用于回收资源管理权限
+语法：dbms_resource_manager_privs。revoke_system_privilege(revokee_name in varchar2,privilege_name in varchar2 default 'administer_resource_manager');
+其中revoke_name指定被收回权限的用户或角色，privilege_name指定要收回的资源管理权限。
+例子：exec dbms_resource_manager_privs.revoke_system_privilege('scott','administer_resource_maneger');
+
+21）、dbms_resource_manager_privs.grant_switch_consumer_group
+作用：用于将用户或角色分配给特定的资源使用组
+语法：dbms_resource_manager_privs.grant_switch_consumer_group(grantee_name in varchar2,consumer_group in varchar2,grant_option in boolean);
+其中grant_option指定资源使用组转授选项
+例子：exec dbms_resource_manager_privs.grant_switch_consumer_group('scott','sys_group',true)
+
+22）、dbms_resource_manager_privs.revoke_switch_consumer_group
+作用：用于收回分配给用户或角色的资源使用组
+语法：dbms_resource_manager_privs.revoke_switch_consumer_group(revokee in varchar2,consumer_group in varchar2);
+例子：dbms_resource_manager_privs.revoke_switch_consumer_group('scott','sys_group')；
+
+3、综合实例
+1）、为用户授权资源管理权限
+说明：默认情况下只有特权用户sys，dba用户system可以进行资源管理，其余用户要使用要为其授权，下面授权给scott。
+conn system/menager@test
+exec dbms_resource_manager_prive.grant_system_privilege('scott','administer_resource_manager',true)
+2）、建立各种资源对象
+说明：建立资源对象前，必须分配pending内存区，建立资源对象后，必须检查并提交pending内存区。
+（1）、建立pending内存区
+conn scott/tiger@test
+exec dbms_resource_manager.create_pending_area
+（2）、建立资源使用组
+exec dbms_resource_manager.create_consumer_group('oltp','联机事务处理组');
+exec dbms_resource_manager.create_consumer_group('dss','决策支持组');
+（3）、建立资源计划
+exec dbms_resource_manager.create_plan('day','该资源计划用于联机事务处理');
+exec dbms_resource_manager.create_plan('night','该资源计划用于决策支持');
+（4）、建立资源计划指令
+说明：建立资源计划指令必须要在资源计划和other_groups组之间的定义管理关系。
+例子：
+begin
+dbms_resource_manager.create_plan_directive(plan=>'DAY',group_or_subplan=>'sys_group',comment=>'最高级别组',cpu_p1=>100,parallel_degree_limit_p1=>3);
+dbms_resource_manager.create_plan_directive(plan=>'DAY',group_or_subplan=>'olpt',comment=>'中间级别组',cpu_p2=>80,parallel_degree_limit_p1=>1);
+dbms_resource_manager.create_plan_directive(plan=>'DAY',group_or_subplan=>'other_groups',comment=>'最低级别组',cpu_p3=>80,parallel_degree_limit_p1=>1);
+dbms_resource_manager.create_plan_directive(plan=>'NIGHT',group_or_subplan=>'sys_group',comment=>'最高级别组',cpu_p1=>100,parallel_degree_limit_p1=>20);
+dbms_resource_manager.create_plan_directive(plan=>'NIGHT',group_or_subplan=>'dss',comment=>'中间级别组',cpu_p2=>80,parallel_degree_limit_p1=>20);
+dbms_resource_manager.create_plan_directive(plan=>'NIGHT',group_or_subplan=>'other_groups',comment=>'最低级别组',cpu_p3=>80,parallel_degree_limit_p1=>20);
+end;
+（5）、验证pending内存区
+说明：验证通过则可以提交pending内存区，不通过需要清除pending内存区并重新建立资源对象。
+exec dbms_resource_manager.validate_pending_area
+（6）、提交pending内存区
+说明：提交pending内存区最终建立永久的资源管理对象。
+exec dbms_resource_manager.submit_pending_area
+3）、分配用户到资源使用组
+exec dbms_resource_manager_privs.grant_switch_consumer_group('scott','oltp',false);
+exec dbms_resource_manager_privs.grant_switch_consumer_group('scott','dss',false);
+4）、设置用户的默认资源使用组
+说明：数据库用户可以属于多个资源使用组，但在特定会话特定时刻只能使用某个资源使用组的相应资源。
+通过设置用户的默认资源使用组，可以使用户登录时自动使用相应资源使用组的资源。
+exec dbms_resource_manager.set_initial_consumer_group('scott','oltp');
+5）、激活资源计划
+说明：为了通过数据库资源管理器限制数据库用户的资源使用，必须要激活资源计划。
+alter system set resource_manager_plan=DAY where scope=momory.
+6）、改变会话或用户的资源使用组
+说明：如果用户属于多个资源使用组，初始登录时会使用默认资源使用组，为了改变特定会话的资源使用组，
+执行exec dbms_resource_manager.switch_consumer_group_for_sess(7,8,'dss');
+为了改变特定用户所有会话的资源使用组，
+执行exec dbms_resource_manager.switch_consumer_group_for_user('scott','dss');
+
+
+二十、dbms_stats
+1、概述
+作用:用于搜集,查看,修改数据库对象的优化统计信息.
+
+2、包的组成
+1）、get_column_stats
+作用：用于取得列的统计信息
+语法：dbms_stats.get_column_stats(ownname varchar2,tabname varchar2,colname varchar2,partname varchar2 default null,stattab varchar2 default null,
+statid varchar2 default null,distcnt out number,density out number,nullcnt out number,srec out statrec,avgclen out number,statown varchar2 default null);
+其中ownname指定方案名，tabname指定表名，colname指定列名，partname指定分区名，stattab指定用户统计表名，statid指定与统计相关的标识符，distcnt返回不同值的个数，
+density返回列的密度，nullcnt返回列的null个数，srec返回列的最大、最小和直方图值，avgclen返回列的平均长度，statown指定包含stattab的方案名。
+
+2）、get_index_stats
+作用：用于取得索引的统计信息
+语法：dbms_stats.get_index_stats(ownnane varchar2,indname varchar2,
+partname varchar2 default null,stattab varchar2 default null,
+statid varchar2 default null,numrows out number,
+numlblks out number,numdist out number,
+avglblk out number,avgdblk out number,clstfct out number,
+indlevel out number,statown varchar2 default null);
+其中ownnane指定索引所有者名，indname指定索引名，partname指定索引分区名，
+stattab指定统计表名，statid指定统计表相关的标识符，numrows返回索引行数，
+numlblks返回索引块个数，numdist返回索引不同键值个数，
+avglblk返回每个键值占用的平均叶块个数，avgdblk返回每个键值对应表行所占用的平均数据块个数，
+clstfct返回索引的聚簇因子，indlevel返回索引层数，statown指定统计表所有者。
+
+3）、get_system_stats
+作用：用于从统计表或数据字典中取得系统统计信息
+语法：dbms_stats.get_system_stats(status out varchar2,dstart out date,dstop out date,
+pname varchar2,pvalue out number,stattab in varchar2 default null,statid in varchar2 default null,statown in varchar2 default null);
+其中status返回状态信息(completed,autogathering,manualgathering)，dstat返回起始搜集日期，dstop返回结束搜集日期，
+pname指定要取得的参数名(sreadtim,mreadtim,cpuspeed,mbrc,maxthr,slavethr)，pvalue返回参数值。
+
+4）、get_table_stats
+作用：用于取得表的统计信息
+语法：dbms_stats.get_table_stats(owname varchar2,tabname varchar2,
+partname varchar2 default null,stattab varchar2 default null,
+statid varchar2 default null,numrows out number,numblks out number,
+avgrlen out number,statown varchar2 default null);
+其中avgrlen返回表行的平均长度。
+
+5）、delete_column_stats
+作用：用于删除列的统计信息。
+语法：dbms_stats.delete_column_stats(ownname varchar2,tabname varchar2,colname varchar2,
+partname varchar2 default null,stattab varchar2 default null,statid varchar2 default null,
+cascade_parts boolean default true,statown varchar2 default null,no_invalidate boolean default false);
+其中cascade_parts指定是否要级联删除分区统计，no_invalidate指定是否要使相关游标无效。
+例子：dbms_stats.delete_column_stats('scott','emp','ename');
+
+6）、delete_index_stat
+作用：用于删除索引统计信息
+语法：dbms_stats.delete_index_stats(ownname varchar2,indname varchar2,
+partname varchar2 default null,stattab varchar2 default null,
+statid varchar2 default null,cascade_parts boolean default true,
+statown varchar2 default null,no_invalidate boolean default false);
+例子：exec dbms_stats.delete_index_stats('scott','pk_emp');
+
+7）、delete_system_stats
+作用：用于删除系统统计信息
+语法：dbms_state.delete_system_stats(stattab varchar2 default null,
+statid varchar2 default null,statown varchar2 default null);
+
+8）、delete_table_stats
+作用：用于删除表的统计信息
+语法：dbms_stats.delete_table_stats(ownname varchar2,tabname varchar2,
+partname varchar2 default null,stattab varchar2 default null,
+statid varchar2 default null,cascade_parts boolean default true,
+cascade_columns boolean default true,cascade_indexes boolean default true,
+statown varchar2 default null,no_invalidate boolean default false);
+其中cascade_columns指定是否级联删除列统计，cascade_indexes指定是否级联删除索引统计。
+例子：exec dbms_stats.delete_table_stats('scott','emp');
+
+9）、delete_schema_stats
+作用：用于删除特定方案的统计信息
+语法：dbms_stats.delete_schema_stats(ownname varchar2,stattab varchar2 default null,
+statid varchar2 default null,statown varchar2 default null,no_invalidate boolean default false);
+例子：exec dbms_stats.delete_schema_stats('scott');
+
+10）、delete_database_stats
+作用：用于删除整个数据库的统计信息
+语法：dbms_stats.delete_database_stats(stattab varchar2 default null,statid varchar2 default null,
+statown varchar2 default null,no_invalidate boolean default false);
+例子：exec dbms_stats.delete_database_stats
+
+11）、create_stat_table
+作用：用于在特定方案建立统计表
+语法：dbms_stats.create_stat_table(ownname varchar2,stattab varchar2,tblspace varchar2 default null);
+其中tblspace指定统计表所在表空间。
+例子：exec dbms_stats.create_stat_table('scott','stattab');
+
+12）、drop_stat_table
+作用：用于删除特定方案的统计表
+语法：dbms_stats.drop_stat_table(ownnanme varchar2,stattab varchar2);
+例子：exec dbms_stats.drop_stat_table('scott','stattab');
+
+13）、export_column_stats
+作用：用于导出列统计并存储到统计表中。
+语法：dbms_stats.export_column_stats(ownname varchar2,tabname varchar2,colname varchar2,
+partname varchar2 default null,stattab varchar2,
+statid varchar2 default null,statown varchar2 default null);
+例子：exec dbms_stats.export_column_stats('scott','emp','ename',stattab=>'stattab');
+
+14）、export_index_stats
+作用：导出索引统计信息，并存储到统计表中
+语法：dbms_stats.export_index_stats(owname varchar2,indname varchar2,
+partname varchar2 default null,stattab varchar2,
+statid varchar2 default null,statown varchar2 default null,
+statown varchar2 default null);
+例子：exec dbms_stats.export_index_stats('scott','pk_emp',stattab=>'stattab');
+
+15）、export_system_stats
+作用：用于导出系统统计信息，并存储到统计表中。
+语法：dbms_stats.export_system_stats(stattab varchar2,statid varchar2 default null,statown varchar2 default null);
+
+16）、export_table_stats
+作用：用于导出表的统计信息，并将其存储到统计表中
+语法：dbms_stats.export_table_stats(ownname varchar2,tabname varchar2,partname varchar2 default null,stattab varchar2,
+statid varchar2 default null,cascade boolean default true,statown varchar2 default null);
+例子：exec dbms_stats.export_table_stats('scott','emp',stattab=>'stattab');
+
+17）、export_schema_stats
+作用：用于导出方案的统计信息，并将其存储到统计表中。
+语法：dbms_stats.export_schema_stats(ownname varchar2,stattab varchar2,
+statid varchar2 default null,statown varchar2 default null);
+例子：exec dbms_stats.export_shcema_stats('scott',stattab=>'stattab');
+
+18）、export_database_stats
+作用：用于导出数据库的所有统计信息，并存储到统计表中。
+语法：dbms_stats.export_database_stats(stattab varchar2,statid varchar2 default null,statown varchar2 default null);
+例子：exec dbms_stats.export_database_stats(stattab=>'stattab',statown=>'scott');
+
+19）、import_column_stats
+作用：用于从统计表取得列统计，并将其存储到数据字典中。
+语法：dbms_stats.import_column_stats(ownname varchar2,tabname varchar2,colname varchar2,
+partname varchar2 default null,stattab varchar2,statid varchar2 default null,statown varchar2 default null,no_invalidate boolean default false);
+例子：exec dbms_stats.import_column_stats('scott','emp','ename',stattab=>'stattab',statown=>'scott');
+
+20）、import_index_stats
+作用：用于从统计表中取得索引统计，并将其存储到数据字典中。
+语法：dbms_stats.import_index_stats(ownname varchar2,indname varchar2,
+partname varchar2 default null,stattab varchar2,statid varchar2 default null,
+statown varchar2 default null,no_invalidate boolean default false);
+例子：exec dbms_stats.import_index_stats('scott','pk_emp',stattab=>'stattab',statown=>'scott');
+
+21）、import_system_stats
+作用：用于从统计表中取得系统统计，并将其存储到数据字典中。
+语法：dbms_stats.import_system_stats(stattab varchar2,statid varchar2 default null,statown varchar2 default null);
+
+22）、import_table_stats
+作用：用于从统计表中取得表统计，并将去存储到数据字段中。
+语法：dbms_stats.import_table_stats(ownname varchar2,tabname varchar2,partname varchar2 default null,
+stattab varchar2,statid varchar2 default null,cascade boolean default true,
+statown varchar2 default null,no_invalidate boolean default false);
+例子：exec dbms_stats.import_table_stats('scott','emp',stattab=>'stattab',statown=>'scott');
+
+23）、import_schema_stats
+作用：用于从统计表中取得方案统计，并将去存储到数据字典中。
+语法：dbms_stats.import_schema_stats(owname varchar2,stattab varchar2,
+statid varchar2 default null,statown varchar2 default null,no_invalidate boolean default flase);
+例子：exec dbms_stats.import_schema_stats('scott',stattab=>'stattab',statown=>'scott');
+
+24）、import_database_stats
+作用：用于从统计表中取得数据库所有对象的统计，并将其存储到数据字典中。
+语法：dbms_stats.import_database_stats(stattab varchar2,statid varchar2 default null,
+statown varchar2 default null,no_invalidate boolean default false);
+例子：exec dbms_stats.import_database_stats(stattab=>'stattab',statown=>'scott');
+
+25）、gather_index_stats
+作用：用于搜集索引统计
+语法：dbms_stats.gather_index_stats(ownname varchar2,indname varchar2,
+partname varchar2 default null,estimate_percent number default null,
+stattab varchar2 default null,statid varchar2 default null,
+statown varchar2 default null,degree number default null,
+granularity varchar2 default 'default',no_invalidate boolean default false);
+其中ownname指定方案名，indname指定索引名，partname指定分区名，estimate_percent指定要预估的行百分比，
+stattab指定用户统计表名，statid指定与统计相关的标识符，statown指定包含STATTAB的方案名，degree指定并行度，
+granularity指定要搜集索引的粒度(default,subpartition,partition,global,all)，no_invalidate指定是否要使用相关游标无效。
+例子：exec dbms_stats.gather_index_stats('scott','pk_emp');
+
+26）、gather_table_stats
+作用：用于搜集表统计
+语法：dbms_stats.gather_table_stats(ownname varchar2,tabname varchar2,
+partname varchar2 default null,estimate_percent number default null,
+block_sample boolean default false,method_opt varchar2 default 'FOR ALL COLUMNS SIZE 1',
+degree number default null,granularity varchar2 default 'default',cascade boolean default false,
+stattab varchar2 default null,statid varchar2 default null,statown varchar2 default null,
+no_invalidate boolean default false);
+其中block_sample指定是否使用随机采样的块个数取代行百分比，method_opt指定列统计的搜集方法，cascade指定是否要级联搜集索引统计。
+例子：exec dbms_stats.gather table_stats('scott','emp');
+
+27）、gather_schema_stats
+作用：用于搜集特定方案所有对象的统计
+语法：dbms_stats.gather_schema_stats(ownname varchar2,
+estimate_percent number default null,block_sample boolean default false,
+method_opt varchar2 default 'FOR ALL COLUMNS SIZE 1',
+degree number default null,granularity varchar2 default 'default',
+cascade boolean default false,stattab varchar2 default null,
+statid varchar2 default null,option varchar2 default 'GATHER',
+objlist out ObjectTab,statown varchar2 default null,
+no_invalidate boolean default false,gather_temp boolean default false);
+其中option指定统计搜集选项(GATHER,GATHER AUTO,GATHER STALE,GATHER EMPTY,LIST AUTO,LIST STALE,LIST EMPTY);
+objlist返回旧对象或空对象，gather_temp指定是否要搜集临时表统计。
+例子：exec dbms_stats.gather_schema_stats('scott');
+
+28）、gather_database_stats
+作用：用于搜集数据库所有对象的统计。
+语法：dbms_stats.gather_database_stats(
+estimate_percnet number default null,block_sample boolean default false,
+method_opt varchar2 default 'FOR ALL COLUMNS SIZE 1',
+degree number default null,granularity varchar2 default 'default',
+cascade boolean default false,stattab varchar2 default null,
+statid varchar2 default null,options varchar2 default 'gather',
+objlist out ObjectTab,statown varchar2 default null,
+gather_sys boolean default false,no_invalidate boolean default false,
+gather_temp boolean default false);
+其中estimate_percent指定要预估的行百分比，block_sample指定是否使用随机采样的块个数取代行百分比，
+method_opt指定列统计的搜集方法，degree指定并行度，
+granularity指定要搜集索引的粒度(default,subpartition,partition,global,all)，
+cascade指定是否要级联搜集索引统计，stattab指定用户统计表名，statid指定与统计相关的标识符，
+option指定统计搜集选项(GATHER,GATHER AUTO,GATHER STALE,GATHER EMPTY,LIST AUTO,LIST STALE,LIST EMPTY)，
+objlist返回旧对象或空对象，statown指定包含STATTAB的方案名,garher_sys指定是否要搜集sys用户对象的统计，
+no_invalidate指定是否要使用相关游标无效，gather_temp指定是否要搜集临时表统计。
+例子：exec dbms_stats.gather_database_stats.
+
+29）、oather_system_stats
+作用：用于搜集系统统计
+语法：dbms_stats.gather_system_stats(
+gathering_mode varchar2 default 'NOWORKLOAD',
+interval integer default null,stattab varchar2 default null,
+statid varchar2 default null,statown varchar2 default null);
+其中gathering_mode用于指定搜集模式值(noworkload,interval,start|stop),
+interval用于指定搜集统计的时间间隔(只适用interval模式)
+例子：exec dbms_stats.gather_system_stats.
+
+30）、UNLOCK_TABLE_STATS
+作用：专治ORA-38029，解锁对象统计信息。
+例子：DBMS_STATS.UNLOCK_TABLE_STATS('MID_SC','DM_OLD_FEATURE_VALUE')
+
+3、综合示例
+declare
+dist_count number;
+density number;
+null_count number;
+srec dbms_stats.statrec;
+avg_col_len number;
+numrows number;
+numlblks number;
+numdist number;
+avglblk number;
+avgdblk number;
+clstfct number;
+indlevel number;
+avgrlen numer;
+begin
+--get_column_stats
+dbms_stats.get_column_stats('scott','emp','job',distcnt=>dist_count,density=>density,nullcnt=>null_count,srec=>srec,avgclen=>avg_col_len);
+dbms_output.put_line('不同列值个数'||dist_count);
+dbms_output.put_line('列平均长度'||avg_col_len);
+--get_index_stats
+dbmns_stats.get_index_stats('scott','PK_EMP',numrows=>numrows,numlblks=>numlblks,
+numdist=>numdist,avglblk=>avglblk,avgdblk=>avgdblk,clstfct=>clstfct,indlevel=>indlevel);
+dbms_output.put_line('叶块个数'||numlblks);
+dbms_output.put_line('索引层次'||indlevel);
+--get_table_stats
+dbms_stats.get_table_stats('scott','emp',numrows=>numrows,numlblks=>numlblks,avgrlen=>avgrlen);
+dbms_output.put_line('表的总计行数'||numrows);
+dbms_output.put_line('表所占有的块个数'||numlblks);
+dbms_output.put_line('表行的平均水平'||avgrlen);
+end;
+
+
+二十一、utl_file
+1、概述
+作用:用于读写OS文件.使用该包访问OS文件时,必须要为OS目录建立相应的DIRECTORY对象..当用户要访问特定目录下的文件时,必须要具有读写DIRECTORY对象的权限.在使用UTL_FILE包之前,应首先建立DIRECTORY对象.
+
+2、包的组成
+1）、file_type
+作用：该类型是utl_file包中所定义的记录类型，其成员是私有的，不能被直接引用。
+该类型的定义如下：
+type file_type is record(is binary_integer,datatype binary_integer);
+
+2）、fopen
+作用：用于打开OS文件。注意，使用该函数最多可以同时打开50个文件
+语法：file_type.fopen(
+location in varchar2,filename in varchar2,
+open_mode in varchar2,max_linesize in binary_integer) return file_type;
+说明：当成功执行后会返回文件句柄，访问该文件可以直接使用文件句柄。
+如果执行失败会触发异常或显示错误。注意当指定文件位置时必须要使用directory对象，且其名称必须大写。
+
+3）、fopen_nchar
+作用：用于以unicode方式打开文件。当使用该函数打开文件后，读写文件会使用unicode取代数据库字符集。
+语法：utl_file.fopen_nchar(
+location in varchar2,
+filename in varchar2,
+open_mode in varchar2
+max_linesize in binary_integer) return file_type;
+
+4）、is_open
+作用：用于确定文件是否已经打开
+语法：utl_file.is_open(file in file_type) return boolean;
+其中file指定文件句柄，如果文件已经被打开返回true，否则返回false。
+
+5）、fclose
+作用：用于关闭已经打开的文件
+语法：utl_file.fclose(file in out file_type);
+
+6）、fclose_all
+作用：用于关闭当前会话打开的所有文件
+语法：utl_file.fclose_all;
+
+7）、get_line
+作用：用于从已打开文件中读取行内容，行内容会被读取到输出缓冲区
+语法：utl_file.get_line(file in file_type,buffer out varchar2,
+linesize in number,len in pls_integer default null);
+其中buffer用于存储读取信息，linesize指定要读取的最大字节输，len指定实际读取长度。
+
+8）、get_line_nchar
+作用：用于以unicode方式读取已打开文件的行内容，并且将行内容读取到输出缓冲区。
+语法：utl_file.get_line_nchar(file in file_type,buffer out varchar2,
+len in pls_integer default null);
+
+9）、get_raw
+作用：用于从文件中读取raw字符串，并调节文件指针到读取位置。
+语法：utl_file.get_raw(fid in utl_file.file_type,r out nocopy raw,
+len in pls_integer default null);
+
+10）、put
+作用：用于将缓冲区内容写入到文件中，当使用put过程时文件必须要以写方式打开。
+在写入缓冲区内容后如果要结束行，可以用new_line过程。
+语法：utl_file.put(file in file_type,buffer in varchar2);
+
+11）、put_nchar
+作用：用于将缓冲区内容以unicode方式写入到文件。
+语法：utl_file.put_nchar(file in file_type,buffer in varchar2);
+
+12）、put_raw
+作用：用于将raw缓冲区中的数据写入到OS文件。
+语法：utl_file.put_raw(fid in utl_file.file_type,r in raw,
+autoflush in boolean default false);
+其中fid指定文件句柄，r指定存放raw数据的缓冲区，autoflush指定是否要自动刷新缓冲区数据。
+
+13）、new_line
+作用：用于为文件增加行终止符。
+语法：utl_file.new_line(file in file_type,lines in natural:=1);
+其中lines指定要增加的行终止符个数。
+
+14）、put_line
+作用：用于将文本缓冲区内容写入到文件中。当使用该过程为文本追加内容时会自动在内容的尾部追加终止符。
+语法：utl_file.put_line(file in file_type,buffer in varchar2,
+autoflush in boolean default false);
+
+15）、put_line_nchar
+作用：用于将文本缓冲区内容以unicode方式写入文件。自动在尾部追加终止符。
+语法：utl_file.put_line_nchar(file in file_type,buffer in varchar2);
+
+16）、putf
+作用：用于以特定格式将文本内容写入到OS文件，其中格式符%s表示字符串，格式符\n表示行终止符。
+语法：utl_file.putf(file in file_type,format in varchar2
+[,arg1 in varchar2 default null,...arg5 in varchar2 default null]);
+其中format指定格式符（最多5个%s），arg1...arg5指定对应格式符的字符串。
+
+17）、putf_nchar
+作用：用于以特定格式将文本内容以unicode的方式写入到OS文件，其中格式符%s表示字符串，格式符\n表示行终止符。
+语法：utl_file.putf_nchar(file in file_type,format in varchar2
+[,arg1 in varchar2 default null,...arg5 in varchar2 default null]);
+其中format指定格式符（最多5个%s），arg1...arg5指定对应格式符的字符串。
+
+18）、fflush
+作用：用于将数据强制性写入到OS文件。正常情况下当给文件写入数据时，
+数据会被暂时存放在缓冲中，过程fflush用于强制将数据写入到OS文件中。
+语法：utl_file.fflush(file in file_type);
+
+19）、fseek
+作用：用于移动文件指针到特定位置。既可以指定文件指针的绝对位置，也可以指定文件指针的相对位置。
+语法：utl_file.fseek(
+fid in utl_file.file_type,absolute_offset in pl_integer default null,
+relative_offset in pls_integer default null);
+其中absolute_offset指定文件指针的绝对位置(单位：字节)，
+relative_offset指定文件指针的相对位置（单位：字节）。
+
+20）、fremove
+作用：用于删除磁盘文件
+语法：utl_file.fremove(location in varchar2,filename in varchar2);
+其中location指定directory对象（必须大写），filename指定要删除的OS文件名。
+
+21）、fcopy
+作用：用于将源文件的全部或部分内容复制到目标文件中。如果不设置起始行和结束行则复制文件所有内容。
+语法：utl_file.fcopy(location ni varcahr2,
+filename in varchar2,
+dest_dir in varchar2,
+dest_file in varchar2,
+start_line in pls_integer default 1,
+end_line in pls_integer default null);
+其中location指定源文件所在目录对应的directory对象，filename指定源文件名，
+dest_dir指定目标文件所在目录对应的directory对象，dest_file指定目标文件的名字，
+start_line指定起始行号，end_line指定结束行号。
+例子：exec utl_file.fcopy('USER_DIR','a.txr','USER_DIR','c.txt');
+
+22）、fgetpos
+作用：返回文件指针所在的偏移位置。
+语法：utl_file.fgetpos(fileid in file_type) return pls_integer;
+
+23）、fgetattr
+作用：用于读取磁盘文件，并返回文件属性
+语法：utl_file.fgetattr(location in varchar2,filename in varchar2,
+exists out boolean,file_length out number,blocksize out number)
+其中location指定OS目录所对应的directory对象，filename指定OS文件名，
+exists确定文件是否存在，file_length取得文件长度，blocksize取得OS块的尺寸。
+
+24）、frename
+作用：用于修改已存在的OS文件名，其作用与unix的mv命令完全相同。
+在修改文件名时，通过指定overwrite参数，可以覆盖已存在的文件。
+语法：utl_file.frename(location in varchar2,filename in varchar2,dest_dir in varchar2,
+dest_file in varchar2,overwrite in boolean default false);
+其中overwrite指定是否要覆盖已存在文件(false:不能覆盖，true:覆盖)。
+例子：exec utl_file.frename('USER_DIR','d.txt','USER_DIR','c.txt');
+
+3、综合例子
+declare
+handle utl_file.file_type;
+buffer varchar2(100);
+buffer1 raw(100);
+fileexist boolean;
+filelen int;
+os_block int;
+begin
+--is_open
+if not utl_file.is_open(handle) then
+--fopen
+bandle:=utl_file.fopen('user_dir','readme.txt','r',1000);
+end if;
+dbms_output.put_line('打开文件成功');
+--get_line
+utl_file.get_line(handle,buffer,100);
+dbms_output.put_line(buffer);
+utl_file.fclose(handle);
+--get_line_nchar
+handle:=utl.file.fopen_nchar('USER_DIR','a.txt'.'r',1000);
+utl_file.get_line_nchar(bandle.buffer);
+dbms_output.put_line(buffer);
+utl_file.fclose(handle);
+--get_raw
+handle:=utl_file.fopen('USER_DIR','a.txt'.'r',1000);
+utl_file.get_raw(handle,buffer1,100);
+dbms_output.put_line(buffer1);
+utl_file.fclose(handle);
+--put
+handle:=utl_file.fopen('USER_DIR','b.txt'.'w',1000);
+buffer:='中华';
+utl_file.put(handle,buffer);
+utl_file.new_line(handle);
+buffer:='中国';
+utl_file.put_line(handle,buffer);
+utl_file.fclose(handle);
+--put_nchar
+handle:=utl_file.fopen('USER_DIR','b.txt'.'w',1000);
+buffer:='中华';
+utl_file.put(handle,buffer);
+utl_file.new_line(handle);
+buffer:='中国';
+utl_file.put_line_nchar(handle,buffer);
+utl_file.fclose(handle);
+--put_raw
+handle:=utl_file.fopen('USER_DIR','b.txt'.'w',1000);
+buffer:='01f3d5a4c7d8';
+utl_file.put_raw(handle,buffer);
+utl_file.new_line(handle);
+utl_file.fclose(handle);
+--putf
+handle:=utl_file.fopen('USER_DIR','b.txt'.'w',1000);
+utl_file.putf(handle,'%s\n%s\n%s\n','历史','文明','万岁');
+utl_file.fclose(handle);
+--fseek
+bandle:=utl_file.fopen('USER_DIR','a.txt','r');
+dbms_output.put_line('文件指针起始位置:'||utl_file.fgetpos(handle));
+utl_file.fseek(handle,20);
+dbms_output.put_line('文件指针起当前位置:'||utl_file.fgetpos(handle));
+utl_file.fclose(handle);
+--fgetattr
+utl_file.fgetatttr('USER_DIR','readme.txt',fileexist,filelen,os_block);
+if fileexist then
+dbms_output.put_line('文件尺寸：'||filelen);
+dbms_output.put_line('OS块尺寸：'||os_block);
+end if;
+end;
+
+
+二十二、utl_inaddr
+1、概述
+作用:用于取得局域网或Internet环境中的主机名和IP地址.
+
+2、包的组成
+1）、get_host_name
+作用：用于取得指定IP地址所对应的主机名
+语法：utl_inaddr.get_host_name(ip in varchr2 default null) return varchar2;
+其中ip指定tcp/ip地址
+例子：select utl_inaddr.get_host_name('127.0.0.1') hostname from dual;
+
+2）、get_host_address
+作用：用于取得指定主机所对应的ip地址
+语法：utl_inaddr.get_host_address(host in varchar2 default null) return varchar2;
+其中host指定主机名
+例子：select utl_inaddr.get_host_address('liutao') ip from dual;
+
+
+二十三、DBMS_METADATA
+1、概述
+作用：提供提取数据库对象的完整定义的接口。这些定义可以用XML或SQL DDL格式描述。
+提供两种类型接口：可编程控制的接口；用于Ad Hoc查询的简单接口。
+
+
+二十三、DBMS_SQL
+1、概述
+1),在整个程序的设计过程中,对游标的操作切不可有省略的部分,一旦省略其中某一步骤,则会程序编译过程既告失败,如在程序结尾处未对改游标进行关闭操作,则在再次调用过程时会出现错误.
+2),dbms_sql除了可以做一般的select,insert,update,delete等静态的sql做能在过程中所做工作外,还能执行create等DDL操作,不过在执行该类操作时应首先显式赋予执行用户相应的系统权限,比如create table等.该类操作只需open cursor--->prase--->close cursor即能完成.
+
+(二)一般过程
+对于一般的select操作,如果使用动态的sql语句则需要进行以下几个步骤:
+open cursor--->parse--->define column--->excute--->fetch rows--->close cursor;
+而对于dml操作(insert,update)则需要进行以下几个步骤:
+open cursor--->parse--->bind variable--->execute--->close cursor;
+对于delete操作只需要进行以下几个步骤:
+open cursor--->parse--->execute--->close cursor;
+
+
+2、包的组成
+1）、OPEN_CURSOR
+作用：打开一个动态游标，并返回一个整型，返回新游标的整型ID值。
+
+2）、PARSE
+作用：对动态游标所提供的sql语句进行解析编译。
+语法：DBMS_SQL.parse(c in integer,statement in varchar2,language_flag in integer)
+其中，参数C表示游标(可以设为C=DBMS_SQL.open_cursor),statement为sql语句,language_flag为解析sql语句所用oracle版本,一般有V6,V7跟native(在不明白所连database版本时,使用 BMS_SQL.native)。
+
+3）、BIND_VARIABLE
+作用：将给定的数量与特定的变量相连接，定义动态sql语句(DML)中所对应字段的值,c为游标,name为字段名称,value为字段的值;
+语法：bind_variable(c in integer, name in varchar2, value):
+
+4）、DEFINE_COLOUMN
+作用：定义动态游标所能得到的对应值,定义字段变量，其值对应于指定游标中某个位置元素的值 （仅用于SELECT语句）
+语法：DBMS_SQL.define_column(c in integer,position in integer,column any datatype,[column_size in integer])
+其中，c为动态游标,positon为对应动态sql中的位置(从1开始),column为该值所对应的变量,可以为任何类型,column_size只有在column为定义长度的类型中使用如VARCHAR2,CHAR等(该过程有很多种情况,此处只对一般使用到的类型进行表述);
+
+5）、EXECUTE
+作用：执行游标,并返回处理一个整型,代表处理结果(对insert,delete,update才有意义,而对select语句而言可以忽略);
+语法：function execute(c in integer):
+
+6）、EXECUTE_AND_FETCH
+作用：执行指定的游标并取记录 
+
+7）、FETCH_ROWS
+作用：从指定的游标中取出记录，循环取数据,并返回一个整数,为0时表示已经取到游标末端;
+语法：function fetch_rows(c in integer): 
+
+8）、COLUMN_VALUE
+作用：返回游标中指定位置的元素，将所取得的游标数据赋值到相应的变量,c为游标,position为位置,value则为对应的变量;
+语法：column_value(c in integer, position in integer, value):
+
+9）、IS_OPEN
+作用：当指定的游标状态为OPEN时返回真值 
+
+10）、CLOSE_CURSOR
+作用：关闭一个动态游标，参数为open_cursor所打开的游标，并释放内存。
+语法：DBMS_SQL.close_cursor(c in out integer)
+
+11）、LAST_ERROR_POSITION
+作用：返回出错SQL语句的字节偏移量 
+
+12）、LAST_ROW_ID
+作用：返回最后一条记录的ROWID 
+
+13）、LAST_SQL_FUNCTION_CODE
+作用：返回语句的SQL FUNCTION CODE 
+
+点赞
+2
+
+评论
+
+分享
+
+收藏
+1
+
+手机看
+
+关注
+收起全文
+
+oracle全套工具包
+11-20
+
+
+优质评论可以帮助作者获得更高权重
+oracle 安装所有包
+05-31
+Oracle中包的使用 - xwnxwn的专栏
+12-15
+
+Oracle中包的使用包头创建语法create [or replace] package package_name {IS|AS}type_definition |procedure_specification |function_specification |variable_...
+oracle 包及 包调用_xwnxwn的专栏-CSDN博客
+1-6
+
+通过oracle,调用java类,并加载jar包到oracle中以支持java类。 阅读数 7126 根据鬼子要求,最初的单纯使用oracle发送和接收mail被抛弃(上一篇文章描述了具体实现),...
+技术大咖秀的博客专栏
+ 507
+
+Oracle常用函数之多行数据合并成一行
+ 
+今天在做一个跑批任务中，需要在oracle函数里把多行数据合并成一行，顺道发挥下常用的几种方法。一、wm_concatwm_concat函数是是oracle中常用的函数，功能：行转列，可以将查询出的多行某列值使用逗号进行隔开拼接，成为一条数据。示例，现在有一张风险表，每个风险项（risk_id）对应有多条规则（risk_rule）,现在我要按照风险项把对应的规则都查询出来。s......
+月下狼~图腾~
+ 357
+
+Oracle之DBMS_SQL包用法详解
+ 
+通常运用DBMS_SQL包一般分为如下几步：1. open cursor：打开cursor2. parse cursor：解析你要执行的SQL语句3. bind variable：如果要执行的SQL语句中包含变量，在此就需要绑定变量4. execute：执行SQL语句5. close cursor：在执行后关闭此cursor.如果你还需要返回执行SQL的结果集，还需要使用......
+Oracle的Package的作用及用法_数据库_yh_zeng2的博客-CSDN博客
+4-5
+
+1.Oracle的Package除 了把存储过程放到一堆儿以外还有没有其他的作用(好处)? 你不觉得把存储过程分门别类是很重要的么,而且不同的package的存储过程可以重 名。
+Oracle包的使用 - hq.zheng的博客
+12-16
+
+Oracle加绕功能可以将PL/SQL代码实现部分隐藏,如存储过程、函数、包体等均可使用加绕功能,下面以一个存储过程实现部分加绕来展示Oracle加绕功能的使用。 加绕方法...
+ 3234
+
+Oracle查询中rownum与Order by查询的关系（取数据的前几条）
+ 
+在开发应用的时候，把数据按照一定的规则排序后再取前几条数据这种操作是很平常的事情。我们在Oracle中常用的就是order by，然后取得rownum小于多少的数据这种方法。不过如果对Oracle不熟悉，也许就会发现你写的SQL语句检索出来的值不正确，这个是为什么呢.因为Oracle在检索的时候，会首先把数据都检索出来，然后在排序段中进行排序(也就是说，先有rownum值，然后才...
+nahanai的博客
+ 61
+
+COALESCE()函数 一个非常有用的函数
+ 
+COALESCE()函数COALESCE()函数 定义：返回列表中第一个非null表达式的值。如果所有表达式求值为null，则返回null对于Oracle数据库和DB2数据库，一般经常对空值处理的函数为NVL，而mysql中常用到的是ifnull，这两个函数相似，其实都是由一个函数衍生而来，那就是COALESCE()函数COALESCE()函数有两种用法：COALESCE ( e......
+oracle 包及 包调用 - wangchen2633的博客 - CSDN博客
+11-13
+
+ORACLEPACKAGE包详解包是一组相关过程、函数、变量、常量#SinaEditor_Temp_FontName、类型和游标等PL/SQL程序设计元素的组合。包具有面向对象设计的特点,是对这些PL....
+oracle包,包调用及好处_随风而逝的博客-CSDN博客
+6-13
+
+在oracle数据库中,package包如同java中package中的作用大致类似;可以把一些过程和函数组织到一起,把PL/SQL代码模块化,构建其他人员重用的代码,在oracle中,包里面可以...
+iteye_8954的博客
+ 968
+
+oracle的常用函数 instr() 和substr()函数
+ 
+在Oracle中可以使用instr函数对某个字符串进行判断，判断其是否含有指定的字符。在一个字符串中查找指定的字符,返回被查找到的指定的字符的位置。语法：instr(sourceString,destString,start,appearPosition)instr（'源字符串' , '目标字符串' ,'开始位置','第几次出现'）其中sourceStr......
+liwenshui322的专栏
+ 1046
+
+Oracle dbms_xplan包简介
+ 
+一. 用途介绍       dbms_xplan包用于展示执行计划。执行计划存储在计划表中，库缓存中和AWR中，dbms_xplan包能从这些地方将执行计划取出，格式化之后展示给我们。        二. dbms_xplan输出        dbms_xplan的输出就是执行计划的信息，从上往下看一般是这样的：        第一部分：...
+Oracle中包(PACKAGE)的使用方法_casellee的博客-CSDN博客
+1-6
+
+Oracle中packages的使用 阅读数 2986 包的作用 : 包可以将任何出现在块声明的语句 ( 过程 , 函数 , 游标 , 变量 ) 放于包中 , 相当于一个容器 。 将声...
+ORACLE中package的用法_口袋里的小龙的专栏-CSDN博客
+1-11
+
+Oracle package 10-24 Oracle packag、Oracle package body实例,使你轻松明白oracle package、oracle package body使用原理。 下载 如何在PLSQL 查看包体中存储...
+wangchen2633的博客
+ 6367
+
+oracle 包 及 包调用
+ 
+create package testpack --创建一个包头,里面定义变量和方法名称,方法参数,返回值类型is                                   v_tax number;                v_s number;                  Function tax(v_money number) return number
+NICE-man的博客
+ 4871
+
+Oracle—包和包体（转）
+ 
+Oracle—包和包体（转）http://heisetoufa.iteye.com/blog/366957
+oracle中包的定义及使用 - swqqcs的专栏
+12-13
+
+ORACLE 包 包的作用:包可以将任何出现在块声明的语句(过程,函数,游标,游标,类型,变量)放于包中,相当于一个容器.将声明语句放入包中的好处是:用户可以从其他PL...
+Oracle中的包的使用_siege-CSDN博客
+6-13
+
+Oracle中包的使用使用程序包主要是为了实现程序的模块化,程序包可以将相关的存储过程,函数,变量,常量和游标等PL/SQL程序组合在一起,通过这种方式可以构供程序人员...
+.... 永远年轻，永远热泪盈眶
+ 8664
+
+oracle教程31 包（包的创建、调用与删除）
+ 
+创建包规范和包体：举例：--创建包规范CREATE OR REPLACE PACKAGE emp_packageIS --添加员工信息的存储过程 PROCEDURE add_emp_proc (v_empno IN emp.empno%TYPE, v_ename IN emp.ename%type, v_sal IN...
+扬帆向海的博客
+ 12万+
+
+没用过这些 IDEA 插件？怪不得写代码头疼
+ 
+使用插件，可以提高开发效率。对于开发人员很有帮助。这篇博客介绍了IDEA中最常用的一些插件。
+iw1210的专栏
+ 6万+
+
+Oracle 中用 imp 和 exp 命令导入导出数据库（附问题及解决办法）
+ 
+Oracle 中用 imp 和 exp 命令导入导出数据库 （转自：http://www.cnblogs.com/yugen/archive/2010/07/25/1784763.html）注： 在splplus环境下执行时，在命令前加 ! 号，这样  SQL> !exp ...   和  SQL> !imp ...基本语法和实例：    1、EXP:      有
+grlsir的专栏
+ 759
+
+编写Oracle包中的函数应当注意的两点问题
