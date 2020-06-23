@@ -1,0 +1,857 @@
+常用sql语句
+
+创建表空间：create tablespace 表空间名字 filedata 'd:\db.dbf' size 20m uniform size 128k;
+说明：创建一个20M的表空间，且表空间的区域大小为128K  。'd:\db.dbf' 为数据文件
+一个数据库由多个表空间构成，表空间又是由段构成，而段又是由区构成，而区又是由块构成，这样构成的可以提高数据的效率；
+实际上表空间又是由多个数据文件构成，当表空间不够使用时，可以增加多个数据文件来增大表空间
+增大表空间语句：alter tablespace 表空间名字 add filedata 'd:\db2.dbf' size 200m ;
+表空间脱机：alter tablespace 表空间 offline;
+
+ 
+
+oracle常用数据字典，oracle10增加了不少数据字典10g r1 有1713个，r2有1870个：
+
+alter user hr identified by 123qwe account unlock;
+
+然后hr用户用sql developer去连接，几个参数为
+hr:qwe123:ip:port:sid(orcl)就成功了
+
+alter user hr account lock　　锁定账户
+alter user hr password expire　　密码过期
+
+alter user hr identified by zxcasd　　修改密码
+
+select distinct user_password from user_info;　　过滤出user_password这一列，并去除重复行（加distinct）
+
+select count(distinct user_password) from user_info;　　计数这一列的总行数
+
+select * from client_login_history order by login_date desc;　　查看客户端登录历史，降序排列
+
+select * from client_login_history where user_name like 'xian%' order by login_date desc;
+
+查看索引的大小
+SQL>select sum(bytes)/(1024*1024) as "size(M)" from user_segments where segment_name=upper('&index_name');
+
+select sum(bytes)/(1024*1024) as "size(M)" from user_segments where segment_name=upper('&table_name');　　查看某表的大小
+
+select sum(bytes)/(1024) as "size(K)" from user_segments where segment_name=upper('&table_name');
+
+select object_name,created from user_objects where object_name=upper('&table_name');　　查询某表的创建时间。
+
+删除用户下所有对象
+drop user hr cascade;
+    要退出所有的hr用户连接，才能正确执行。
+查询某用户所属表空间
+select username,default_tablespace from user_users;
+查询某表空间所有表
+select table_name from all_tables where TABLESPACE_NAME='EXAMPLE'
+
+select * from all_tables where tablespace_name='FLT_DATA';　　查询这个表空间有多少张表
+
+select * from all_tables where owner='FLTDATA';　　查询这个用户有多少张表
+
+select * from user_tables　　以某个用户登录，查询该用户有多少张表
+
+select * from user_indexes　　以某个用户登录，查询该用户有多少个索引
+
+select * from user_ind_columns where index_name=upper('&index_name');　　查看索引被索引的字段
+
+select * from all_tables where owner='FLT';　　结果集本身就有每一张表的行数
+
+select * from all_tables where owner='FLT' order by num_rows desc;　　在上面的基础上加了按记录数降序排序
+
+select sum(num_rows) as total from all_tables where owner='FLT';　　在上面的基础上实现了将记录数求和
+
+select * from all_tables where tablespace_name='FLT_DATA' and owner='FLTDATA';　　查询这个用户的这个表空间有多少表，加了个and
+
+select * from user_login_log where rownum <= 20 ;　　用伪列rownum来限制输出行数
+
+select * from (select * from user_login_log order by start_time desc) where rownum < 220;　　先降序处理，再对结果限制输出行数，用了子查询
+
+select * from user_online_real_time where is_online=1 order by login_time desc;　　7a的在线的客户端都是通过cs登录的
+
+select * from user_info where user_id=10001522;　　在上面的基础上查看某个userid的具体定义
+
+select * from v$session;　　查询当前登录用户相关信息
+
+推理出数据库密码的加密方式，因为数了一下密文的位数是32位，并且不可逆，所以尝试md5
+
+明文：123abc!@#，然后站长工具的加解密工具，md5-32位小，得出密文：8c13b5750412d922b01b2da95d24f8b6，用下面这条sql查询进行比对，验证，结果不出所料
+
+select * from user_info where user_password like '8c13%' and user_name like '%FG%';
+
+ 
+
+sessions=1.1*processes+5
+show parameter session
+show parameter processes
+select count(*) from v$session where status='ACTIVE';　 并发连接数
+
+select value from v$parameter where name='processes'; 数据库允许的最大连接数
+select count(*) from v$process; 当前的数据库连接数
+select value from v$parameter where name='sessions'
+select count(*) from v$session;　　 当前的session连接数
+
+SQL> select username,count(username) from v$session where username is not null group by username;　　查看不同用户的连接数
+
+USERNAME                       COUNT(USERNAME)
+------------------------------ ---------------
+FLT                                        686
+SYSMAN                                       2
+DBSNMP                                       2
+SYS                                          1
+SQL> select username,count(username) from v$session where username is not null group by username;
+
+USERNAME                       COUNT(USERNAME)
+------------------------------ ---------------
+SYSMAN                                       6
+DBSNMP                                       6
+FLTDATA                                    116
+SYS                                          1
+
+
+grantee　　n. 受让人；被授与者
+
+查看用户lcpsys拥有的角色：
+
+SQL>  select * from dba_role_privs where grantee='LCPSYS';
+
+GRANTEE                GRANTED_ROLE              ADM DEF
+------------------------------ ------------------------------ --- ---
+LCPSYS                   DBA                  NO  YES
+
+SQL>  select * from dba_role_privs where grantee='PLATFORM_USER';
+
+GRANTEE                GRANTED_ROLE              ADM DEF
+------------------------------ ------------------------------ --- ---
+PLATFORM_USER               CONNECT                  NO  YES
+PLATFORM_USER               RESOURCE               NO  YES
+
+
+查看用户拥有的所有权限。
+
+select privilege from dba_sys_privs where grantee='PLATFORM_USER'
+union
+select privilege from dba_sys_privs where grantee in
+(select granted_role from dba_role_privs where grantee='PLATFORM_USER');
+
+ 
+
+ 
+
+ 
+
+isqlplus
+
+sqlplus是Oracle数据库的最常用的一种环境工具，它是sqlplus的Web版本。初学者都可以使用isqlplus进行对数据库的简单的操作，它的操作界面是非常简单的。
+首先要启动它的服务
+其次http://ip:5560/isqlplus/
+
+ 
+
+SQL*PLUS命令
+
+ 
+
+ 
+
+复制代码
+连接到某一个schema（user）,输入正确的用户名与密码后，才能进去，然后help才可用，
+sqlplus /nolog进入交互界面，而不登录
+随时都可以连接到其它schema,同时只能连接一个schema,（连接到另一个schema的同时，就会从当前schema中断开）。
+断开只需要输入disco(不需要输入完整，只要不重名就可以了)
+
+连接一个database(instance)
+
+[oracle@oracle1 ~]$ sqlplus 
+
+SQL*Plus: Release 11.2.0.4.0 Production on Sun Oct 30 21:26:39 2016
+
+Copyright (c) 1982, 2013, Oracle.  All rights reserved.
+
+Enter user-name: test
+Enter password: 
+
+Connected to:
+Oracle Database 11g Enterprise Edition Release 11.2.0.4.0 - 64bit Production
+With the Partitioning, OLAP, Data Mining and Real Application Testing options
+
+SQL> show user
+USER is "TEST"
+SQL> help index
+
+Enter Help [topic] for help.
+
+ @             COPY         PAUSE                    SHUTDOWN
+ @@            DEFINE       PRINT                    SPOOL
+ /             DEL          PROMPT                   SQLPLUS
+ ACCEPT        DESCRIBE     QUIT                     START
+ APPEND        DISCONNECT   RECOVER                  STARTUP
+ ARCHIVE LOG   EDIT         REMARK                   STORE
+ ATTRIBUTE     EXECUTE      REPFOOTER                TIMING
+ BREAK         EXIT         REPHEADER                TTITLE
+ BTITLE        GET          RESERVED WORDS (SQL)     UNDEFINE
+ CHANGE        HELP         RESERVED WORDS (PL/SQL)  VARIABLE
+ CLEAR         HOST         RUN                      WHENEVER OSERROR
+ COLUMN        INPUT        SAVE                     WHENEVER SQLERROR
+ COMPUTE       LIST         SET                      XQUERY
+ CONNECT       PASSWORD     SHOW
+
+
+SQL> disco
+Disconnected from Oracle Database 11g Enterprise Edition Release 11.2.0.4.0 - 64bit Production
+With the Partitioning, OLAP, Data Mining and Real Application Testing options
+SQL> show user
+USER is ""
+SQL> conn
+Enter user-name: sys as sysdba
+Enter password: 
+Connected.
+SQL> show user
+USER is "SYS"
+SQL> disc
+Disconnected from Oracle Database 11g Enterprise Edition Release 11.2.0.4.0 - 64bit Production
+With the Partitioning, OLAP, Data Mining and Real Application Testing options
+SQL> show user
+USER is ""
+SQL> help
+SP2-0171: HELP system not available.
+SQL> conn
+Enter user-name: test
+Enter password: 
+Connected.
+SQL> help
+
+ HELP
+ ----
+
+ Accesses this command line help system. Enter HELP INDEX or ? INDEX
+ for a list of topics.
+
+ You can view SQL*Plus resources at
+     http://www.oracle.com/technology/documentation/
+
+ HELP|? [topic]
+
+
+更改当前用户的密码
+
+SQL> show user
+USER is "TEST"
+SQL> password
+Changing password for TEST
+Old password: 
+New password: 
+Retype new password: 
+Password changed
+SQL>
+
+
+SQL> define
+DEFINE _DATE           = "21-MAR-17" (CHAR)
+DEFINE _CONNECT_IDENTIFIER = "aa" (CHAR)
+DEFINE _USER           = "HR" (CHAR)
+DEFINE _PRIVILEGE      = "" (CHAR)
+DEFINE _SQLPLUS_RELEASE = "1102000400" (CHAR)
+DEFINE _EDITOR         = "vi" (CHAR)
+DEFINE _O_VERSION      = "Oracle Database 11g Enterprise Edition Release 11.2.0.4.0 - 64bit Production
+With the Partitioning, OLAP, Data Mining and Real Application Testing options" (CHAR)
+DEFINE _O_RELEASE      = "1102000400" (CHAR)
+
+SQL> define _editor=vi
+
+复制代码
+ 
+
+ 
+
+ 
+
+ 
+
+复制代码
+SQL*PLUS命令书上介绍了连接命令、编辑命令、文件操作命令和交互式命令，下面我们补充一下格式化命令，这类命令的作用是对查询结果进行格式化输出，使得用户查看时更加直观。
+在sqlplus执行sql时，经常碰到显示结果，跨行输出，致使可读性很差，看起来特别乱。可通过set linesize及column命令进行调整。
+常用的格式化命令有：
+    COLUMN(COL)
+    REPHEADER(REPH)
+    REPFOOTER(REPF)
+    TTITLE(TTI)
+    BTITLE(BTI)
+SQL> show autocommit
+autocommit OFF
+SQL> set autocommit 10
+SQL> set autocommit off
+下面两个是一样的效果
+SQL> set autocommit on
+SQL> set autocommit immediate
+
+五花八门的报表格式，数据库内容格式化输出就成为报表
+
+SQL> column instance_name heading 'aaa|bbb'
+SQL> column host_name heading 'ccc|ddd'
+SQL> select instance_name,host_name from v$instance;
+
+aaa
+bbb
+----------------
+ccc
+ddd
+----------------------------------------------------------------
+FLT
+CentOS5
+
+SQL> column host_name heading 'ccc,ddd'
+SQL> /
+
+aaa
+bbb
+----------------
+ccc,ddd
+----------------------------------------------------------------
+FLT
+CentOS5
+
+
+SQL> set underline =
+SQL> /
+
+aaa
+bbb
+================
+ccc,ddd
+================================================================
+FLT
+CentOS5
+
+
+SQL> set underline '-'
+SQL> /
+
+aaa
+bbb
+----------------
+ccc,ddd
+----------------------------------------------------------------
+FLT
+CentOS5
+
+
+SQL>
+SQL> column host_name clear
+SQL> column instance_name clear
+SQL> /
+
+INSTANCE_NAME
+----------------
+HOST_NAME
+----------------------------------------------------------------
+FLT
+CentOS5
+
+任务综合
+set pagesize 66
+set newpage 0
+set linesize 70
+title center 
+column a heading 'first|name'
+column b heading 'month|salary' format $99,999
+select a,b,c from aa where b>12000
+
+SQL> archive log list
+Database log mode              Archive Mode
+Automatic archival             Enabled
+Archive destination            /archive_dest/
+Oldest online log sequence     2606
+Next log sequence to archive   2608
+Current log sequence           2608
+
+设置行宽，默认80字符宽，设为200字符宽
+SQL> show linesize
+linesize 80
+SQL> set linesize 200
+设置页大小，默认每页10行，重新设为15行
+SQL> show pagesize
+pagesize 10
+SQL> set pagesize 15
+设置列（字段）的宽度或名称
+设置每行能容纳的字符数，范围为1~32767 。在查询时，通常一条记录会显示一行，如果一行显示不下，则会自动换行。用户输入数据时，当一行输入的值超过一行的最大值时，也会自动换行。
+column c1 format a20               --将列c1（字符型）显示最大宽度调整为20个字符
+column c1 format 9999999          --将列c1（num型）显示最大宽度调整为7个字符
+column c1 heading c2           --将c1的列名输出为c2
+更改数字类型的输出格式
+col empno format '99.9'
+更改字符类型的输出格式，每行两个字符
+col ename format a2
+SQL> column c123 format a30
+SQL> column c1 format a10
+SQL> column c2 format a10
+SQL> column c3 format a10
+
+SQL> ttitle center "this is top"
+SQL> btitle center "this is bottom"
+SQL> set pagesize 5
+SQL> select name from v$database;
+
+                                   this is top
+NAME
+---------
+FLT
+                                 this is bottom
+
+SQL> set newpage 0
+SQL> set pagesize 50
+SQL> repheader page center 'perfect widgets'
+SQL> repheader off
+SQL> ttitle center 'T H I S  I S  T O P' skip 1 - 
+> center =================== skip 1 -
+> left 'personal report' -
+> right 'sales depart' skip 2
+SQL> /
+SQL> btitle skip 1 center 'this is bottom'
+SQL> ttitle left 'personal' right 'page:' sql.pno skip 2
+SQL> ttitle
+ttitle ON and is the following 44 characters:
+left 'personal' right 'page:' sql.pno skip 2
+SQL> btitle
+btitle ON and is the following 30 characters:
+center 'this is bottom' skip 1
+
+SQL> show all
+appinfo is OFF and set to "SQL*Plus"
+arraysize 15
+autocommit OFF
+autoprint OFF
+autorecovery OFF
+
+SQLPLUS有很多开关需要设置,如下:
+set colsep' '; //域输出分隔符
+set echo off;//显示start启动的脚本中的每个sql命令，缺省为on
+set feedback off;//回显本次sql命令处理的记录条数，缺省为on
+set heading off; //输出域标题，缺省为on
+set pagesize 0;//输出每页行数，缺省为24,为了避免分页，可设定为0。
+set termout off; //显示脚本中的命令的执行结果，缺省为on
+set trimout on;//去除标准输出每行的拖尾空格，缺省为off
+set trimspool on;//去除重定向（spool）输出每行的拖尾空格，缺省为off
+set feedback off;
+set heading off;
+set echo off;
+set term off;
+set trimout on
+set trimspool  on
+set linesize 120;
+set pagesize 0;
+spool xxx.sql;
+.................................
+.................................
+.................................
+spool off;
+ 
+set feedback off|on
+设置为on，当执行insert,update，pl/sql等操作时，会提示执行的结果。如果设置为off，则不显示，缺省为on。
+set heading off|on
+设置打开(on)或关闭(off)查询结果页的头信息，如列标题，缺省为on。
+set echo on|off
+显示start|@启动的脚本中的每个sql命令（输出结果到文件中时即spool xxx.sql），缺省为on。缺省为off 。
+set term[out] {on|off}
+在用spool命令将一个大表中的内容输出到一个文件中时，将内容输出在屏幕上会耗费大量的时间，设置set termspool off后，则输出的内容只会保存在输出文件中，不会显示在屏幕上，极大的提高了spool的速度。必须运行脚本时中才有用，缺省为on。
+set trimout on{on|off}
+去除标准输出每行的拖尾空格，缺省为off.
+set trimspool  on{on|off};　　
+去除重定向（spool）输出每行的拖尾空格，缺省为off
+set colsep  |
+控制列分隔符为什么东东,此处为 "|"
+set pagesize [n] （0）
+用于设置每页的行数，范围为1~ 50000，如果为0，则表示不分页，不带n，表示为0。否则，缺省情况下，当查询结果的行数超过一页的行数时，就会分页显示，每页的开头会显示列标题信息。
+set linesize n  （120）
+设置每行能容纳的字符数，范围为1~32767 。在查询时，通常一条记录会显示一行，如果一行显示不下，则会自动换行。用户输入数据时，当一行输入的值超过一行的最大值时，也会自动换行。
+set newp[age] {1|n|none}
+    设置页与页之间的分隔
+    当set newpage 0 时，会在每页的开头有一个小的黑方框。
+    当set newpage n 时，会在页和页之间隔着n个空行。
+    当set newpage none 时，会在页和页之间没有任何间隔。
+
+SQLPLUS中实现纯净输出，格式化输出
+加-s参数的结果如下:
+加开关的话,得到的结果会更加精简,
+怎么样,输出够精简的吧,可以直接作为结果传输给shell作为判断条件了
+[oracle@rac01 ~]$ cat testsqlplus.sh
+#!/bin/bash
+sqlplus -s "/ as sysdba" <<EOF
+set pagesize
+show parameter
+EOF
+
+[root@rac01 sysconfig]# su - oracle
+[oracle@rac01 ~]$ sqlplus / as sysdba
+SQL> select group_number,disk_number,name,path from v$asm_disk;
+SQL> select username,sid,serial# from v$session;
+SQL> show parameter service --查看服务名
+SQL> show all --查看所有68个系统变量值
+SQL> show user --显示当前连接用户
+SQL> show error --显示错误
+SQL> set heading off --禁止输出列标题，默认值为ON
+SQL> set feedback off --禁止显示最后一行的计数反馈信息，默认值为"对6个或更多的记录，回送ON"
+SQL> set timing on --默认为OFF，设置查询耗时，可用来估计SQL语句的执行时间，测试性能
+SQL> set sqlprompt "SQL> " --设置默认提示符，默认值就是"SQL> "
+SQL> set linesize 1000 --设置屏幕显示行宽，默认100
+SQL> set autocommit ON --设置是否自动提交，默认为OFF
+SQL> set pause on --默认为OFF，设置暂停，会使屏幕显示停止，等待按下ENTER键，再显示下一页
+SQL> set arraysize 1 --默认为15
+SQL> set long 1000 --默认为80 
+
+
+存储和打印查询结果，输出到一个文件或直接发送到打印机
+
+复制代码
+SQL> spool outp
+SQL> select member from v$logfile;
+
+MEMBER
+--------------------------------------------------------------------------------
+/oracle/oradata/FLT/redo03.log
+/oracle/oradata/FLT/redo02.log
+/oracle/oradata/FLT/redo01.log
+
+SQL> select name from v$controlfile;
+
+NAME
+--------------------------------------------------------------------------------
+/oracle/oradata/FLT/control01.ctl
+/oracle/oradata/FLT/control02.ctl
+/oracle/oradata/FLT/control03.ctl
+
+SQL> select status from v$Instance;
+
+STATUS
+------------
+OPEN
+
+SQL> spool off
+
+[oracle@CentOS5 ~]$ cat outp.lst
+SQL> select member from v$logfile;
+
+MEMBER
+--------------------------------------------------------------------------------
+/oracle/oradata/FLT/redo03.log
+/oracle/oradata/FLT/redo02.log
+/oracle/oradata/FLT/redo01.log
+
+SQL> select name from v$controlfile;
+
+NAME
+--------------------------------------------------------------------------------
+/oracle/oradata/FLT/control01.ctl
+/oracle/oradata/FLT/control02.ctl
+/oracle/oradata/FLT/control03.ctl
+
+SQL> select status from v$Instance;
+
+STATUS
+------------
+OPEN
+
+SQL> spool off
+[oracle@CentOS5 ~]$
+复制代码
+复制代码
+ 
+
+SQL命令
+
+ 
+
+ 
+
+复制代码
+在oracle sql developer 2.1.1.64中操作
+
+由于hr用户与sys用户权限不同，同一个语句可能在hr用户中无输出。
+
+普通用户hr
+
+show user;
+select * from v$diag_info;
+select count(*) from all_tables;	106张表
+select count(*) from user_tables;
+select * from user_tables;
+select * from tab;
+select * from tabs;
+desc jobs;
+select distinct tablespace_name from tabs;	查看当前用户使用的表空间
+select * from user_tablespaces;
+select * from user_free_space;
+select * from user_users;		查看当前用户默认表空间
+select * from user_role_privs;		查看当前用户的角色
+select * from user_sys_privs;		查看当前用户的系统权限
+select * from user_tab_privs;		查看当前用户的表级权限
+
+sys用户
+
+show user;
+select * from v_$version;
+select * from product_component_version;
+查看数据库的版本(精确过滤出所要的数据)
+select version from product_component_version where substr(PRODUCT,1,6)='Oracle';
+查看数据文件-联合查询
+select name from v$datafile union select name from v$tempfile;
+select * from v$controlfile;
+select * from v$logfile;
+select * from v$archived_log;		查看归档日志文件
+select * from v$diag_info;
+select * from v$spparameter;
+select * from v$process;
+select * from v$instance;
+select * from v$database;
+select created, log_mode from v$database;	查看数据库的创建日期与归档方式
+select count(*) from all_tables;	2783张表
+select count(*) from user_tables;	956张表
+
+select distinct tablespace_name from tabs;	查看当前用户使用的表空间
+select * from dba_tablespaces;		查看所有的表空间
+select * from user_tablespaces;
+select * from dba_free_space;		下面两条是一样的结果
+select * from user_free_space;
+select * from user_users;		查看当前用户默认表空间
+select * from dba_users;
+select * from all_users;
+select * from tab;
+select * from tabs;
+
+查看数据库库对象
+select owner, object_type, status, count(*) count# from all_objects group by owner, object_type, status;
+显示当前连接
+select * from v$session where status = 'INACTIVE' and username is not null;
+查看表空间物理文件的名称及大小
+select tablespace_name, file_id, file_name,round(bytes/(1024*1024),0) total_space from dba_data_files order by tablespace_name;
+复制代码
+ 
+
+ 
+
+ 
+
+ 
+
+复制代码
+
+
+查看表空间已经使用的百分比
+select a.tablespace_name,a.bytes/1024/1024 "Sum MB",(a.bytes-b.bytes)/1024/1024 "used MB",b.bytes/1024/1024 "free MB",round(((a.bytes-b.bytes)/a.bytes)*100,2) "percent_used"  
+from  
+(select tablespace_name,sum(bytes) bytes from dba_data_files group by tablespace_name)   a,  
+(select tablespace_name,sum(bytes) bytes,max(bytes) largest from dba_free_space group by tablespace_name)   b  
+where   a.tablespace_name=b.tablespace_name  
+order   by   ((a.bytes-b.bytes)/a.bytes)   desc
+“Sum MB”表示表空间所有的数据文件总共在操作系统占用磁盘空间的大小
+比如：test表空间有2个数据文件，datafile1为300MB，datafile2为400MB，那么test表空间的“Sum MB”就是700MB
+“userd MB”表示表空间已经使用了多少
+“free MB”表示表空间剩余多少
+“percent_user”表示已经使用的百分比
+从上面中查看到FLT_INDX表空间已使用百分比达到90%以上，可以查看该表空间总共有几个数据文件，每个数据文件是否自动扩展，可以自动扩展的最大值。
+select file_name,tablespace_name,bytes/1024/1024 "bytes MB",maxbytes/1024/1024 "maxbytes MB" 
+from dba_data_files  
+where tablespace_name='USERS'
+查看 xxx 表空间是否为自动扩展   
+select file_id,file_name,tablespace_name,autoextensible,increment_by from dba_data_files order by file_id desc;
+确认磁盘空间足够，增加一个数据文件
+alter tablespace MLOG_NORM_SPACE  
+add datafile '/oracle/oms/oradata/mlog/Mlog_Norm_data001.dbf'  
+size 10M autoextend on maxsize 20G
+验证已经增加的数据文件
+select   file_name,file_id,tablespace_name   from   dba_data_files  
+where   tablespace_name='MLOG_NORM_SPACE'
+如何删除表空间数据文件，如下：
+alter   tablespace   MLOG_NORM_SPACE  
+drop    datafile '/oracle/oms/oradata/mlog/Mlog_Norm_data001.dbf'
+通过查询dba_free_space表可以了解一个tablespace的空间使用情况。
+TABLESPACE_NAME：
+    Name of the tablespace containing the extent
+FILE_ID：
+    ID number of the file containing the extent
+BLOCK_ID：
+    Starting block number of the extent
+BYTES：
+    Size of the extent in bytes
+BLOCKS：
+    Size of the extent in ORACLE block
+查询表空间的free space
+select  
+tablespace_name,  
+count(*) as extends,  
+round(sum(bytes)/1024/1024, 2) as MB,  
+sum(blocks) as blocks  
+from dba_free_space group by tablespace_name;
+
+SQL> select file_name,tablespace_name,bytes/1024/1024 "bytes MB",maxbytes/1024/1024 "maxbytes MB"
+  2  from dba_data_files
+  3  where tablespace_name='FLT_ALARM_REALTIME_201512';
+
+FILE_NAME
+--------------------------------------------------------------------------------
+TABLESPACE_NAME                  bytes MB maxbytes MB
+------------------------------ ---------- -----------
+/5A/oracle/oradata/flt/FLT_alarm_realtime_201512.dbf
+FLT_ALARM_REALTIME_201512             200  32767.9844
+
+SQL> select * from v$version;
+
+BANNER
+----------------------------------------------------------------
+Oracle Database 10g Enterprise Edition Release 10.2.0.1.0 - Prod
+PL/SQL Release 10.2.0.1.0 - Production
+CORE    10.2.0.1.0      Production
+TNS for Linux: Version 10.2.0.1.0 - Production
+NLSRTL Version 10.2.0.1.0 - Production
+
+查看各组件及版本
+SQL> set pagesize 50
+SQL> SELECT * FROM PRODUCT_COMPONENT_VERSION;
+SQL> SELECT * FROM V$OPTION;
+
+[oracle@CentOS5 ~]$ cat sid.sql
+SELECT s.sid, s.serial#, p.spid as "OS PID",s.username, s.module, st.value/100 as "CPU sec"
+FROM v$sesstat st, v$statname sn, v$session s, v$process p
+WHERE sn.name = 'CPU used by this session' -- CPU
+AND st.statistic# = sn.statistic#
+AND st.sid = s.sid
+AND s.paddr = p.addr
+AND s.last_call_et < 1800 -- active within last 1/2 hour
+AND s.logon_time > (SYSDATE - 240/1440) -- sessions logged on within 4 hours
+ORDER BY st.value;
+
+SQL> set linesize 200
+SQL> @sid.sql
+
+       SID    SERIAL# OS PID       USERNAME                       MODULE                                              CPU sec
+---------- ---------- ------------ ------------------------------ ------------------------------------------------ ----------
+      1571      40501 3915                                                                                                  0
+      1547       4589 15249        SYS                            sqlplus@CentOS5 (TNS V1-V3)                             .05
+      1569      58974 15059        FLT                            httpd@CentOS5 (TNS V1-V3)                               .64
+      1552       7572 15090        FLT                            httpd@CentOS5 (TNS V1-V3)                               .69
+      1553       3776 14748        FLT                            httpd@CentOS5 (TNS V1-V3)                              1.34
+
+默认后缀是sql,除非用set suf 修改，如下：
+SQL> set suf aa
+SQL> store set ccd
+Created file ccd
+SQL> host ls -l
+total 740
+-rw-r--r-- 1 oracle oinstall   2068 Jun 18 16:36 ccd.aa
+
+表是逻辑存储单元，它是保存在数据库的表空间的，而真正的数据是存放在表空间对应的数据文件中的。你可以问表在那个表空间中？方法是：
+select tablespace_name from dba_tables where table_name='help';
+SELECT * FROM ALL_OBJECTS WHERE object_type = 'TABLE' AND object_name = 'help';
+SQL> select * from nls_session_parameters;
+SQL> select * from v$nls_valid_values;
+
+根据地区代码表查询身份证号，省市县生日
+模糊查询district_name字段中有武功的行
+ select * from district_info 
+ where district_name like '%武功%'
+按照start_time字段升序排列
+ select * from gather_driver_login_log
+ order by start_time
+
+
+The table below lists every Oracle-supplied package and type that is currently installed in the database.
+
+SELECT DISTINCT Owner, Object_Type, Object_Name FROM DBA_Objects_AE
+WHERE Owner IN (
+'SYS', 'OUTLN', 'SYSTEM', 'CTXSYS', 'DBSNMP',
+'LOGSTDBY_ADMINISTRATOR', 'ORDSYS',
+'ORDPLUGINS', 'OEM_MONITOR', 'MDSYS', 'LBACSYS', 
+'DMSYS', 'WMSYS', 'OLAPDBA', 'OLAPSVR', 'OLAP_USER',
+'OLAPSYS', 'EXFSYS', 'SYSMAN', 'MDDATA',
+'SI_INFORMTN_SCHEMA', 'XDB', 'ODM')
+AND Object_Type IN ('PACKAGE', 'TYPE')
+ORDER BY Owner, Object_Type, Object_Name
+复制代码
+ 
+
+复制代码
+[oracle@oracle admin]$ sqlplus /NOLOG
+
+SQL*Plus: Release 11.2.0.1.0 Production on Tue Sep 13 14:25:27 2016
+
+Copyright (c) 1982, 2009, Oracle.  All rights reserved.
+
+SQL> conn hr
+Enter password:
+Connected.
+SQL> select table_name from user_tables;
+
+TABLE_NAME
+------------------------------
+COUNTRIES
+JOBS
+EMPLOYEES
+LOCATIONS
+DEPARTMENTS
+JOB_HISTORY
+REGIONS
+
+7 rows selected.
+SQL> disconn
+Disconnected from Oracle Database 11g Enterprise Edition Release 11.2.0.1.0 - 64bit Production
+With the Partitioning, Automatic Storage Management, OLAP, Data Mining
+and Real Application Testing options
+SQL> show user;
+USER is ""
+
+
+SQL> conn sys
+Enter password:
+ERROR:
+ORA-28009: connection as SYS should be as SYSDBA or SYSOPER
+
+SQL> conn sys/asdqwe123
+ERROR:
+ORA-28009: connection as SYS should be as SYSDBA or SYSOPER
+
+SQL> conn sys/asdqwe123 as sysdba
+Connected.
+SQL> show user
+USER is "SYS"
+SQL> conn hr
+Enter password:
+Connected.
+SQL> show user
+USER is "HR"
+
+
+账户的锁定与密码的过期。
+SQL> conn sys/123456 as sysdba
+Connected.
+SQL> alter user hr password expire;
+
+User altered.
+
+SQL> conn hr
+Enter password:
+ERROR:
+ORA-28001: the password has expired
+
+Changing password for hr
+New password:
+Retype new password:
+Password changed
+Connected.
+SQL>
+
+
+SQL> alter user hr account lock;
+
+User altered.
+
+SQL> disconn
+Disconnected from Oracle Database 11g Enterprise Edition Release 11.2.0.1.0 - 64bit Production
+With the Partitioning, Automatic Storage Management, OLAP, Data Mining
+and Real Application Testing options
+SQL> conn hr
+Enter password:
+ERROR:
+ORA-28000: the account is locked
+
+alter user hr identified by zxcasd
